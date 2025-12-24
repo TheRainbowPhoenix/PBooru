@@ -31,10 +31,333 @@ async function fetchArrayBuffer(url) {
 
 const statusEl = document.getElementById("status");
 const gridEl = document.getElementById("grid");
+const filterBarEl = document.getElementById("filterBar");
+const tagsPanelEl = document.getElementById("tagsPanel");
+const galleryPanelEl = document.getElementById("galleryPanel");
+const tagDirectoryEl = document.getElementById("tagDirectory");
+const openTagsBtn = document.getElementById("openTags");
+const modalEl = document.getElementById("modal");
+const modalTitleEl = document.getElementById("modalTitle");
+const modalImageEl = document.getElementById("modalImage");
+const modalMetaEl = document.getElementById("modalMeta");
+const tagSectionsEl = document.getElementById("tagSections");
+const imageStageEl = document.getElementById("imageStage");
+const progressBarEl = document.getElementById("progressBar");
+const progressFillEl = document.getElementById("progressFill");
+const loadFullBtn = document.getElementById("loadFull");
+const copyLinkBtn = document.getElementById("copyLink");
+const modalCloseBtn = document.getElementById("modalClose");
+
+const variantFallbacks = {
+  thumb: "clip",
+  clip: "full",
+};
+
+function normalizeManifestItem(item) {
+  if (item.full || item.thumb || item.clip) return item;
+  return {
+    id: item.id,
+    name: item.name,
+    full: { bin: item.bin, ext: item.ext, bytes: item.bytes, sha256: item.sha256 },
+    clip: { bin: item.bin, ext: item.ext },
+    thumb: { bin: item.bin, ext: item.ext },
+    tags: item.tags ?? [],
+  };
+}
+
+function pickVariant(item, variant) {
+  const normalized = normalizeManifestItem(item);
+  if (normalized[variant]) return normalized[variant];
+  const fallback = variantFallbacks[variant];
+  return fallback ? pickVariant(normalized, fallback) : normalized.full;
+}
+
+function buildEncUrl(baseUrl, bin) {
+  return `${baseUrl}/${bin}`;
+}
+
+async function fetchWithProgress(url, onProgress) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`Failed ${url}: ${r.status}`);
+  const contentLength = r.headers.get("content-length");
+  if (!r.body || !contentLength) {
+    const buf = await r.arrayBuffer();
+    onProgress(1);
+    return buf;
+  }
+  const total = Number(contentLength);
+  let loaded = 0;
+  const reader = r.body.getReader();
+  const chunks = [];
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    loaded += value.length;
+    onProgress(Math.min(loaded / total, 1));
+  }
+  const buffer = new Uint8Array(loaded);
+  let offset = 0;
+  for (const chunk of chunks) {
+    buffer.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return buffer.buffer;
+}
+
+async function decryptVariant(item, variant, keyBytes, baseUrl, progressCb = null) {
+  const variantData = pickVariant(item, variant);
+  const binUrl = buildEncUrl(baseUrl, variantData.bin);
+  const buf = progressCb ? await fetchWithProgress(binUrl, progressCb) : await fetchArrayBuffer(binUrl);
+  const enc = new Uint8Array(buf);
+  const dec = xorBytes(enc, keyBytes);
+  const blob = new Blob([dec], { type: extToMime(variantData.ext) });
+  return URL.createObjectURL(blob);
+}
+
+function setProgress(value) {
+  if (value == null) {
+    progressBarEl.style.display = "none";
+    return;
+  }
+  progressBarEl.style.display = "block";
+  progressFillEl.style.width = `${Math.round(value * 100)}%`;
+}
+
+function openModal() {
+  modalEl.classList.add("active");
+}
+
+function renderTagSection(title, tags) {
+  if (!tags.length) return;
+  const section = document.createElement("div");
+  section.className = "tag-section";
+
+  const heading = document.createElement("h3");
+  heading.textContent = title;
+  section.appendChild(heading);
+
+  const list = document.createElement("ul");
+  list.className = "tag-list";
+  tags.forEach((tag) => {
+    const item = document.createElement("li");
+    item.textContent = tag.label;
+    item.addEventListener("click", () => {
+      closeModal();
+      applyTagFilter(tag.filter);
+    });
+    list.appendChild(item);
+  });
+  section.appendChild(list);
+  tagSectionsEl.appendChild(section);
+}
+
+function renderTags(tags) {
+  tagSectionsEl.innerHTML = "";
+  const artistTags = [];
+  const characterTags = [];
+  const otherTags = [];
+
+  tags.forEach((tag) => {
+    if (tag.startsWith("artist:")) {
+      artistTags.push({ label: tag.replace(/^artist:/, ""), filter: tag });
+    } else if (tag.startsWith("character:")) {
+      characterTags.push({ label: tag.replace(/^character:/, ""), filter: tag });
+    } else {
+      otherTags.push({ label: tag, filter: tag });
+    }
+  });
+
+  artistTags.sort((a, b) => a.label.localeCompare(b.label));
+  characterTags.sort((a, b) => a.label.localeCompare(b.label));
+  otherTags.sort((a, b) => a.label.localeCompare(b.label));
+
+  renderTagSection("Artist", artistTags);
+  renderTagSection("Character", characterTags);
+  renderTagSection("Tags", otherTags);
+}
+
+function closeModal() {
+  modalEl.classList.remove("active");
+  imageStageEl.classList.remove("loading");
+  modalImageEl.src = "";
+  modalTitleEl.textContent = "";
+  modalMetaEl.textContent = "";
+  tagSectionsEl.innerHTML = "";
+  setProgress(null);
+  currentItem = null;
+  for (const url of objectUrls) {
+    URL.revokeObjectURL(url);
+  }
+  objectUrls.clear();
+  if (location.hash) {
+    history.replaceState(null, "", location.pathname + location.search);
+  }
+}
+
+let currentItem = null;
+let currentKeyBytes = null;
+let currentBaseUrl = null;
+let currentMetadataById = new Map();
+let currentItems = [];
+let currentFilterTag = null;
+const objectUrls = new Set();
+
+function applyTagFilter(tag) {
+  currentFilterTag = tag;
+  renderFilterPill();
+  showGalleryPanel();
+  renderGrid();
+}
+
+function renderFilterPill() {
+  filterBarEl.innerHTML = "";
+  if (!currentFilterTag) return;
+  const pill = document.createElement("div");
+  pill.className = "filter-pill";
+  pill.textContent = currentFilterTag;
+  const closeBtn = document.createElement("button");
+  closeBtn.type = "button";
+  closeBtn.textContent = "×";
+  closeBtn.addEventListener("click", () => {
+    currentFilterTag = null;
+    renderFilterPill();
+    renderGrid();
+  });
+  pill.appendChild(closeBtn);
+  filterBarEl.appendChild(pill);
+}
+
+function showTagsPanel() {
+  tagsPanelEl.classList.remove("hidden");
+  galleryPanelEl.classList.add("hidden");
+}
+
+function showGalleryPanel() {
+  tagsPanelEl.classList.add("hidden");
+  galleryPanelEl.classList.remove("hidden");
+}
+
+function buildTagIndex() {
+  const counts = new Map();
+  currentItems.forEach((item) => {
+    const tags = currentMetadataById.get(item.id)?.tags ?? item.tags ?? [];
+    tags.forEach((tag) => {
+      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    });
+  });
+  return Array.from(counts.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+}
+
+function renderTagDirectory() {
+  tagDirectoryEl.innerHTML = "";
+  const tags = buildTagIndex();
+  tags.forEach(([tag, count]) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = `${tag} (${count})`;
+    button.addEventListener("click", () => {
+      applyTagFilter(tag);
+    });
+    tagDirectoryEl.appendChild(button);
+  });
+}
+
+async function renderGrid() {
+  gridEl.innerHTML = "";
+  const itemsToShow = currentFilterTag
+    ? currentItems.filter((item) => {
+        const tags = currentMetadataById.get(item.id)?.tags ?? item.tags ?? [];
+        return tags.includes(currentFilterTag);
+      })
+    : currentItems;
+
+  const concurrency = 6;
+  let idx = 0;
+
+  async function worker() {
+    while (idx < itemsToShow.length) {
+      const item = itemsToShow[idx++];
+      const objUrl = await decryptVariant(item, "thumb", currentKeyBytes, currentBaseUrl);
+      objectUrls.add(objUrl);
+
+      const card = document.createElement("div");
+      card.className = "card";
+      card.dataset.id = item.id;
+
+      const skeleton = document.createElement("div");
+      skeleton.className = "thumb-skeleton";
+
+      const img = document.createElement("img");
+      img.loading = "lazy";
+      img.src = objUrl;
+      img.alt = item.name ?? item.id;
+      img.addEventListener("load", () => {
+        card.classList.remove("loading");
+        skeleton.remove();
+      });
+
+      const info = document.createElement("div");
+      info.className = "card-info";
+      const tags = currentMetadataById.get(item.id)?.tags ?? item.tags ?? [];
+      const details = document.createElement("div");
+      const bytesKb = (item.full.bytes / 1024).toFixed(1);
+      details.textContent = `${item.full.width ?? "?"}x${item.full.height ?? "?"}, ${bytesKb}KB ${item.full.ext.toUpperCase()}`;
+      info.appendChild(details);
+
+      if (tags.length) {
+        const tagWrap = document.createElement("div");
+        tagWrap.className = "card-tags";
+        tags.slice(0, 8).forEach((tag) => {
+          const pill = document.createElement("span");
+          pill.className = "tag-pill";
+          pill.textContent = tag;
+          tagWrap.appendChild(pill);
+        });
+        if (tags.length > 8) {
+          const more = document.createElement("span");
+          more.className = "tag-pill";
+          more.textContent = `${tags.length - 8} more`;
+          tagWrap.appendChild(more);
+        }
+        info.appendChild(tagWrap);
+      }
+
+      card.classList.add("loading");
+      card.appendChild(skeleton);
+      card.addEventListener("click", async () => {
+        await showItem(item, tags);
+      });
+
+      gridEl.appendChild(card);
+      card.appendChild(img);
+      card.appendChild(info);
+    }
+  }
+
+  await Promise.all(Array.from({ length: concurrency }, () => worker()));
+}
+
+modalCloseBtn.addEventListener("click", closeModal);
+openTagsBtn.addEventListener("click", () => {
+  renderTagDirectory();
+  showTagsPanel();
+});
+
+copyLinkBtn.addEventListener("click", async () => {
+  if (!currentItem) return;
+  const url = `${location.origin}${location.pathname}#${encodeURIComponent(currentItem.id)}`;
+  await navigator.clipboard.writeText(url);
+  copyLinkBtn.textContent = "Copied!";
+  setTimeout(() => {
+    copyLinkBtn.textContent = "Copy link";
+  }, 1500);
+});
 
 document.getElementById("load").addEventListener("click", async () => {
   gridEl.innerHTML = "";
   statusEl.textContent = "Loading manifest…";
+  closeModal();
 
   const baseUrl = document.getElementById("baseUrl").value.replace(/\/+$/, "");
   const key = document.getElementById("key").value;
@@ -43,49 +366,80 @@ document.getElementById("load").addEventListener("click", async () => {
     return;
   }
   const keyBytes = new TextEncoder().encode(key);
+  currentKeyBytes = keyBytes;
+  currentBaseUrl = baseUrl;
 
   try {
     const manifestUrl = `${baseUrl}/manifest.json`;
     const manifest = await fetchJson(manifestUrl);
-
-    statusEl.textContent = `Found ${manifest.items.length} items. Loading…`;
-
-    // naive parallelism control
-    const concurrency = 6;
-    let idx = 0;
-
-    async function worker() {
-      while (idx < manifest.items.length) {
-        const item = manifest.items[idx++];
-        const binUrl = `${baseUrl}/enc/${item.bin}`;
-        const buf = await fetchArrayBuffer(binUrl);
-        const enc = new Uint8Array(buf);
-        const dec = xorBytes(enc, keyBytes);
-
-        const blob = new Blob([dec], { type: extToMime(item.ext) });
-        const objUrl = URL.createObjectURL(blob);
-
-        const card = document.createElement("div");
-        card.className = "card";
-
-        const img = document.createElement("img");
-        img.loading = "lazy";
-        img.src = objUrl;
-        img.alt = item.id;
-
-        const cap = document.createElement("div");
-        cap.innerHTML = `<strong>${item.id}</strong><br/><small>${item.ext}, ${item.bytes} bytes</small>`;
-
-        card.appendChild(img);
-        card.appendChild(cap);
-        gridEl.appendChild(card);
-      }
+    const metadataUrl = `${baseUrl}/metadata.json`;
+    let metadata = { items: [] };
+    try {
+      metadata = await fetchJson(metadataUrl);
+    } catch (error) {
+      console.warn("No metadata.json found, continuing.");
     }
 
-    await Promise.all(Array.from({ length: concurrency }, () => worker()));
+    const metadataById = new Map((metadata.items ?? []).map((item) => [item.id, item]));
+    currentMetadataById = metadataById;
+    currentItems = manifest.items.map(normalizeManifestItem);
+    currentFilterTag = null;
+
+    statusEl.textContent = `Found ${currentItems.length} items. Loading…`;
+    renderFilterPill();
+    showGalleryPanel();
+    await renderGrid();
     statusEl.textContent = "Done.";
+
+    const hashId = decodeURIComponent(location.hash.replace(/^#/, ""));
+    if (hashId) {
+      const selected = currentItems.find((item) => item.id === hashId);
+      if (selected) {
+        const tags = metadataById.get(selected.id)?.tags ?? selected.tags ?? [];
+        await showItem(selected, tags);
+      }
+    }
   } catch (e) {
     console.error(e);
     statusEl.textContent = `Error: ${e.message ?? e}`;
   }
 });
+
+async function showItem(item, tags) {
+  if (!currentKeyBytes || !currentBaseUrl) return;
+  currentItem = item;
+  location.hash = encodeURIComponent(item.id);
+  modalTitleEl.textContent = item.name || "Untitled";
+  const metadata = currentMetadataById.get(item.id);
+  const rating = metadata?.rating ? `Rating: ${metadata.rating}` : null;
+  const source = metadata?.source ? `Source: ${metadata.source}` : null;
+  const metaParts = [rating, source].filter(Boolean);
+  modalMetaEl.textContent = metaParts.length ? metaParts.join(" · ") : `ID: ${item.id}`;
+  renderTags(metadata?.tags ?? tags ?? []);
+  openModal();
+  imageStageEl.classList.add("loading");
+  setProgress(null);
+
+  const clipUrl = await decryptVariant(item, "clip", currentKeyBytes, currentBaseUrl);
+  objectUrls.add(clipUrl);
+  modalImageEl.src = clipUrl;
+  imageStageEl.classList.remove("loading");
+
+  loadFullBtn.onclick = async () => {
+    if (!currentItem) return;
+    imageStageEl.classList.add("loading");
+    setProgress(0);
+    const fullUrl = await decryptVariant(
+      item,
+      "full",
+      currentKeyBytes,
+      currentBaseUrl,
+      (progress) => setProgress(progress),
+    );
+    objectUrls.add(fullUrl);
+    modalImageEl.src = fullUrl;
+    imageStageEl.classList.remove("loading");
+    setProgress(1);
+    setTimeout(() => setProgress(null), 800);
+  };
+}
