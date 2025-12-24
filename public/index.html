@@ -7,10 +7,25 @@
     <style>
       body { font-family: system-ui, sans-serif; margin: 20px; }
       .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
-      .card { border: 1px solid #ddd; border-radius: 10px; padding: 10px; }
+      .card { border: 1px solid #ddd; border-radius: 10px; padding: 10px; cursor: pointer; background: #fff; }
       img { width: 100%; height: auto; display:block; border-radius: 8px; }
       input { width: 100%; padding: 8px; margin: 6px 0 12px; }
       small { opacity: 0.7; }
+      .tags { color: #444; margin-top: 6px; font-size: 0.9rem; }
+      .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 10; }
+      .modal.active { display: flex; }
+      .modal-content { background: #fff; padding: 16px; border-radius: 12px; max-width: min(90vw, 1100px); width: 100%; max-height: 90vh; overflow: auto; }
+      .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+      .modal-title { font-weight: 600; }
+      .modal-close { border: none; background: #eee; border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+      .image-stage { position: relative; }
+      .image-stage img { width: 100%; height: auto; border-radius: 10px; transition: filter 0.3s ease; }
+      .image-stage.loading img { filter: blur(12px); transform: scale(1.01); }
+      .progress-bar { height: 6px; background: #eee; border-radius: 999px; overflow: hidden; margin-top: 10px; }
+      .progress-bar > div { height: 100%; background: #4a7cf7; width: 0%; transition: width 0.2s ease; }
+      .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; align-items: center; }
+      .button { border: none; background: #4a7cf7; color: #fff; padding: 8px 12px; border-radius: 6px; cursor: pointer; }
+      .button.secondary { background: #eaeaea; color: #222; }
     </style>
   </head>
   <body>
@@ -31,6 +46,25 @@
 
     <div id="status"></div>
     <div class="grid" id="grid"></div>
+    <div class="modal" id="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div class="modal-title" id="modalTitle"></div>
+          <button class="modal-close" id="modalClose">Close</button>
+        </div>
+        <div class="image-stage loading" id="imageStage">
+          <img id="modalImage" alt="" />
+        </div>
+        <div class="progress-bar" id="progressBar">
+          <div id="progressFill"></div>
+        </div>
+        <div class="controls">
+          <button class="button" id="loadFull">Load full</button>
+          <button class="button secondary" id="copyLink">Copy link</button>
+          <span id="modalMeta"></span>
+        </div>
+      </div>
+    </div>
 
     <script type="module" src="./viewer.js"></script>
   </body>
