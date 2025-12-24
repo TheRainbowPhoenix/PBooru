@@ -35,7 +35,7 @@
       }
       header h1 { margin: 0; font-size: 1.6rem; letter-spacing: 2px; }
       .accent { color: var(--light); text-shadow: var(--glow); }
-      main { display: grid; grid-template-columns: 260px 1fr; gap: 24px; padding: 24px 32px; }
+      main { display: grid; /* grid-template-columns: 260px 1fr; */ gap: 24px; padding: 24px 32px; }
       .panel {
         background: var(--card);
         border: 1px solid var(--border);
@@ -208,15 +208,24 @@
       <div class="header-actions">
         <button class="menu-button" id="openPosts">Posts</button>
         <button class="menu-button" id="openTags">Tags</button>
+        <button class="menu-button" id="openConnection">Connection</button>
       </div>
     </header>
 
     <main>
-      <section class="panel">
+      <section id="galleryPanel">
+        <div id="filterBar"></div>
+        <div class="grid" id="grid"></div>
+      </section>
+      <section id="tagsPanel" class="panel hidden">
+        <h2>Tags</h2>
+        <div class="tag-directory" id="tagDirectory"></div>
+      </section>
+      <section id="connectionPanel" class="panel hidden">
         <h2>Connection</h2>
         <label>
           Assets base URL (enc/ root with manifest.json):
-          <input id="baseUrl" placeholder="https://cdn.jsdelivr.net/gh/TheRainbowPhoenix/PBooru@master/enc" />
+          <input id="baseUrl" placeholder="https://cdn.jsdelivr.net/gh/TheRainbowPhoenix/PBooru@master/enc/" />
         </label>
         
         <label>
@@ -228,14 +237,9 @@
         <p class="hint"><small>This is obfuscation only. If the browser can decrypt, users can extract it.</small></p>
         <div id="status"></div>
       </section>
-
-      <section id="galleryPanel">
-        <div id="filterBar"></div>
-        <div class="grid" id="grid"></div>
-      </section>
-      <section id="tagsPanel" class="panel hidden">
-        <h2>Tags</h2>
-        <div class="tag-directory" id="tagDirectory"></div>
+      <section id="loadingPanel" class="panel hidden">
+        <h2>Loading database</h2>
+        <div class="thumb-skeleton"></div>
       </section>
     </main>
     <div class="modal" id="modal">
