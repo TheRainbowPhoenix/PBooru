@@ -31,6 +31,11 @@ async function fetchArrayBuffer(url) {
 
 const statusEl = document.getElementById("status");
 const gridEl = document.getElementById("grid");
+const filterBarEl = document.getElementById("filterBar");
+const tagsPanelEl = document.getElementById("tagsPanel");
+const galleryPanelEl = document.getElementById("galleryPanel");
+const tagDirectoryEl = document.getElementById("tagDirectory");
+const openTagsBtn = document.getElementById("openTags");
 const modalEl = document.getElementById("modal");
 const modalTitleEl = document.getElementById("modalTitle");
 const modalImageEl = document.getElementById("modalImage");
@@ -200,18 +205,63 @@ const objectUrls = new Set();
 
 function applyTagFilter(tag) {
   currentFilterTag = tag;
-  statusEl.textContent = `Filtered by tag: ${tag} (click to clear)`;
+  renderFilterPill();
+  showGalleryPanel();
   renderGrid();
 }
 
-statusEl.addEventListener("click", () => {
+function renderFilterPill() {
+  filterBarEl.innerHTML = "";
   if (!currentFilterTag) return;
-  currentFilterTag = null;
-  statusEl.textContent = `Found ${currentItems.length} items. Loading…`;
-  renderGrid().then(() => {
-    statusEl.textContent = "Done.";
+  const pill = document.createElement("div");
+  pill.className = "filter-pill";
+  pill.textContent = currentFilterTag;
+  const closeBtn = document.createElement("button");
+  closeBtn.type = "button";
+  closeBtn.textContent = "×";
+  closeBtn.addEventListener("click", () => {
+    currentFilterTag = null;
+    renderFilterPill();
+    renderGrid();
   });
-});
+  pill.appendChild(closeBtn);
+  filterBarEl.appendChild(pill);
+}
+
+function showTagsPanel() {
+  tagsPanelEl.classList.remove("hidden");
+  galleryPanelEl.classList.add("hidden");
+}
+
+function showGalleryPanel() {
+  tagsPanelEl.classList.add("hidden");
+  galleryPanelEl.classList.remove("hidden");
+}
+
+function buildTagIndex() {
+  const counts = new Map();
+  currentItems.forEach((item) => {
+    const tags = currentMetadataById.get(item.id)?.tags ?? item.tags ?? [];
+    tags.forEach((tag) => {
+      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    });
+  });
+  return Array.from(counts.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+}
+
+function renderTagDirectory() {
+  tagDirectoryEl.innerHTML = "";
+  const tags = buildTagIndex();
+  tags.forEach(([tag, count]) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = `${tag} (${count})`;
+    button.addEventListener("click", () => {
+      applyTagFilter(tag);
+    });
+    tagDirectoryEl.appendChild(button);
+  });
+}
 
 async function renderGrid() {
   gridEl.innerHTML = "";
@@ -247,15 +297,30 @@ async function renderGrid() {
         skeleton.remove();
       });
 
-      const cap = document.createElement("div");
+      const info = document.createElement("div");
+      info.className = "card-info";
       const tags = currentMetadataById.get(item.id)?.tags ?? item.tags ?? [];
-      const title = item.name || item.id.slice(0, 12);
-      cap.innerHTML = `<strong>${title}</strong><br/><small>${item.full.ext}, ${item.full.bytes} bytes</small><small class="hash">${item.id.slice(0, 12)}…</small>`;
+      const details = document.createElement("div");
+      const bytesKb = (item.full.bytes / 1024).toFixed(1);
+      details.textContent = `${item.full.width ?? "?"}x${item.full.height ?? "?"}, ${bytesKb}KB ${item.full.ext.toUpperCase()}`;
+      info.appendChild(details);
+
       if (tags.length) {
-        const tagEl = document.createElement("div");
-        tagEl.className = "tags";
-        tagEl.textContent = tags.join(", ");
-        cap.appendChild(tagEl);
+        const tagWrap = document.createElement("div");
+        tagWrap.className = "card-tags";
+        tags.slice(0, 8).forEach((tag) => {
+          const pill = document.createElement("span");
+          pill.className = "tag-pill";
+          pill.textContent = tag;
+          tagWrap.appendChild(pill);
+        });
+        if (tags.length > 8) {
+          const more = document.createElement("span");
+          more.className = "tag-pill";
+          more.textContent = `${tags.length - 8} more`;
+          tagWrap.appendChild(more);
+        }
+        info.appendChild(tagWrap);
       }
 
       card.classList.add("loading");
@@ -266,7 +331,7 @@ async function renderGrid() {
 
       gridEl.appendChild(card);
       card.appendChild(img);
-      card.appendChild(cap);
+      card.appendChild(info);
     }
   }
 
@@ -274,6 +339,10 @@ async function renderGrid() {
 }
 
 modalCloseBtn.addEventListener("click", closeModal);
+openTagsBtn.addEventListener("click", () => {
+  renderTagDirectory();
+  showTagsPanel();
+});
 
 copyLinkBtn.addEventListener("click", async () => {
   if (!currentItem) return;
@@ -317,6 +386,8 @@ document.getElementById("load").addEventListener("click", async () => {
     currentFilterTag = null;
 
     statusEl.textContent = `Found ${currentItems.length} items. Loading…`;
+    renderFilterPill();
+    showGalleryPanel();
     await renderGrid();
     statusEl.textContent = "Done.";
 
