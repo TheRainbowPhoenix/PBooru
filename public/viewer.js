@@ -36,6 +36,7 @@ const tagsPanelEl = document.getElementById("tagsPanel");
 const galleryPanelEl = document.getElementById("galleryPanel");
 const tagDirectoryEl = document.getElementById("tagDirectory");
 const openTagsBtn = document.getElementById("openTags");
+const cacheName = "pbooru-decrypted-v1";
 const modalEl = document.getElementById("modal");
 const modalTitleEl = document.getElementById("modalTitle");
 const modalImageEl = document.getElementById("modalImage");
@@ -107,12 +108,24 @@ async function fetchWithProgress(url, onProgress) {
 
 async function decryptVariant(item, variant, keyBytes, baseUrl, progressCb = null) {
   const variantData = pickVariant(item, variant);
+  const cacheKey = `pbooru:${variant}:${item.id}:${variantData.ext}`;
+  const cachedUrl = blobUrlCache.get(cacheKey);
+  if (cachedUrl) return cachedUrl;
+  const cachedBlob = await getCachedBlob(cacheKey);
+  if (cachedBlob) {
+    const cachedObjectUrl = URL.createObjectURL(cachedBlob);
+    blobUrlCache.set(cacheKey, cachedObjectUrl);
+    return cachedObjectUrl;
+  }
   const binUrl = buildEncUrl(baseUrl, variantData.bin);
   const buf = progressCb ? await fetchWithProgress(binUrl, progressCb) : await fetchArrayBuffer(binUrl);
   const enc = new Uint8Array(buf);
   const dec = xorBytes(enc, keyBytes);
   const blob = new Blob([dec], { type: extToMime(variantData.ext) });
-  return URL.createObjectURL(blob);
+  await setCachedBlob(cacheKey, blob);
+  const objectUrl = URL.createObjectURL(blob);
+  blobUrlCache.set(cacheKey, objectUrl);
+  return objectUrl;
 }
 
 function setProgress(value) {
@@ -186,10 +199,14 @@ function closeModal() {
   tagSectionsEl.innerHTML = "";
   setProgress(null);
   currentItem = null;
-  for (const url of objectUrls) {
+  if (fullAutoTimer) {
+    clearTimeout(fullAutoTimer);
+    fullAutoTimer = null;
+  }
+  for (const url of modalUrls) {
     URL.revokeObjectURL(url);
   }
-  objectUrls.clear();
+  modalUrls.clear();
   if (location.hash) {
     history.replaceState(null, "", location.pathname + location.search);
   }
@@ -201,7 +218,23 @@ let currentBaseUrl = null;
 let currentMetadataById = new Map();
 let currentItems = [];
 let currentFilterTag = null;
-const objectUrls = new Set();
+const blobUrlCache = new Map();
+const modalUrls = new Set();
+let fullAutoTimer = null;
+
+async function getCachedBlob(cacheKey) {
+  if (!("caches" in window)) return null;
+  const cache = await caches.open(cacheName);
+  const cached = await cache.match(cacheKey);
+  if (!cached) return null;
+  return cached.blob();
+}
+
+async function setCachedBlob(cacheKey, blob) {
+  if (!("caches" in window)) return;
+  const cache = await caches.open(cacheName);
+  await cache.put(cacheKey, new Response(blob));
+}
 
 function applyTagFilter(tag) {
   currentFilterTag = tag;
@@ -279,7 +312,6 @@ async function renderGrid() {
     while (idx < itemsToShow.length) {
       const item = itemsToShow[idx++];
       const objUrl = await decryptVariant(item, "thumb", currentKeyBytes, currentBaseUrl);
-      objectUrls.add(objUrl);
 
       const card = document.createElement("div");
       card.className = "card";
@@ -421,11 +453,11 @@ async function showItem(item, tags) {
   setProgress(null);
 
   const clipUrl = await decryptVariant(item, "clip", currentKeyBytes, currentBaseUrl);
-  objectUrls.add(clipUrl);
+  modalUrls.add(clipUrl);
   modalImageEl.src = clipUrl;
   imageStageEl.classList.remove("loading");
 
-  loadFullBtn.onclick = async () => {
+  const loadFull = async () => {
     if (!currentItem) return;
     imageStageEl.classList.add("loading");
     setProgress(0);
@@ -436,10 +468,17 @@ async function showItem(item, tags) {
       currentBaseUrl,
       (progress) => setProgress(progress),
     );
-    objectUrls.add(fullUrl);
+    modalUrls.add(fullUrl);
     modalImageEl.src = fullUrl;
     imageStageEl.classList.remove("loading");
     setProgress(1);
     setTimeout(() => setProgress(null), 800);
   };
+  loadFullBtn.onclick = loadFull;
+  if (fullAutoTimer) clearTimeout(fullAutoTimer);
+  fullAutoTimer = setTimeout(() => {
+    if (currentItem?.id === item.id) {
+      loadFull();
+    }
+  }, 4000);
 }

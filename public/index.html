@@ -181,7 +181,7 @@
       .hint { font-size: 0.8rem; opacity: 0.8; margin-top: 8px; }
       @media (max-width: 900px) {
         main { grid-template-columns: 1fr; }
-        .modal-content { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+        .modal-content { display: flex; flex-direction: column-reverse; }
         .modal-sidebar { border-right: none; border-top: 1px solid var(--border); }
       }
       .hidden { display: none; }
