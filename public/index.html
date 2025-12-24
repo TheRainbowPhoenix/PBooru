@@ -185,7 +185,8 @@
         .modal-sidebar { border-right: none; border-top: 1px solid var(--border); }
       }
       .hidden { display: none; }
-      .menu-button { background: transparent; border: 1px solid rgba(238, 205, 142, 0.3); color: var(--light); padding: 6px 12px; border-radius: 999px; cursor: pointer; }
+      .header-actions { display: flex; gap: 8px; }
+      .menu-button { background: transparent; border: 1px solid rgba(238, 205, 142, 0.3); color: var(--light); padding: 4px 10px; border-radius: 999px; cursor: pointer; font-size: 0.85rem; }
       .tag-directory { display: grid; gap: 8px; }
       .tag-directory button {
         width: 100%;
@@ -201,7 +202,10 @@
   <body>
     <header>
       <h1>PB<span class="accent">ooru</span></h1>
-      <button class="menu-button" id="openTags">Tags</button>
+      <div class="header-actions">
+        <button class="menu-button" id="openPosts">Posts</button>
+        <button class="menu-button" id="openTags">Tags</button>
+      </div>
     </header>
 
     <main>

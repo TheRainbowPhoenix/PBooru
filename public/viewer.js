@@ -36,7 +36,9 @@ const tagsPanelEl = document.getElementById("tagsPanel");
 const galleryPanelEl = document.getElementById("galleryPanel");
 const tagDirectoryEl = document.getElementById("tagDirectory");
 const openTagsBtn = document.getElementById("openTags");
+const openPostsBtn = document.getElementById("openPosts");
 const cacheName = "pbooru-decrypted-v1";
+const cacheUrlPrefix = "https://cache.pbooru.local/";
 const modalEl = document.getElementById("modal");
 const modalTitleEl = document.getElementById("modalTitle");
 const modalImageEl = document.getElementById("modalImage");
@@ -222,10 +224,14 @@ const blobUrlCache = new Map();
 const modalUrls = new Set();
 let fullAutoTimer = null;
 
+function toCacheUrl(cacheKey) {
+  return `${cacheUrlPrefix}${encodeURIComponent(cacheKey)}`;
+}
+
 async function getCachedBlob(cacheKey) {
   if (!("caches" in window)) return null;
   const cache = await caches.open(cacheName);
-  const cached = await cache.match(cacheKey);
+  const cached = await cache.match(toCacheUrl(cacheKey));
   if (!cached) return null;
   return cached.blob();
 }
@@ -233,7 +239,7 @@ async function getCachedBlob(cacheKey) {
 async function setCachedBlob(cacheKey, blob) {
   if (!("caches" in window)) return;
   const cache = await caches.open(cacheName);
-  await cache.put(cacheKey, new Response(blob));
+  await cache.put(toCacheUrl(cacheKey), new Response(blob));
 }
 
 function applyTagFilter(tag) {
@@ -374,6 +380,9 @@ modalCloseBtn.addEventListener("click", closeModal);
 openTagsBtn.addEventListener("click", () => {
   renderTagDirectory();
   showTagsPanel();
+});
+openPostsBtn.addEventListener("click", () => {
+  showGalleryPanel();
 });
 
 copyLinkBtn.addEventListener("click", async () => {
