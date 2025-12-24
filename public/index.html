@@ -97,12 +97,31 @@
       small.hash { font-size: 0.75rem; letter-spacing: 1px; margin-top: 4px; }
       .tags { color: var(--accent); margin-top: 6px; font-size: 0.85rem; }
       #status { margin: 12px 0; color: var(--light); }
-      .modal { position: fixed; inset: 0; background: rgba(5, 6, 12, 0.8); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 10; }
-      .modal.active { display: flex; }
-      .modal-content { background: var(--card); padding: 16px; border-radius: 16px; max-width: min(90vw, 1100px); width: 100%; max-height: 90vh; overflow: auto; border: 1px solid var(--border); box-shadow: var(--glow); }
-      .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+      .modal { position: fixed; inset: 0; background: rgba(5, 6, 12, 0.92); display: none; z-index: 10; }
+      .modal.active { display: block; }
+      .modal-content {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        height: 100%;
+        width: 100%;
+        background: rgba(10, 12, 22, 0.95);
+        border-left: 1px solid var(--border);
+      }
+      .modal-sidebar {
+        background: rgba(15, 18, 32, 0.95);
+        border-right: 1px solid var(--border);
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .modal-header { display: flex; justify-content: space-between; align-items: center; }
       .modal-title { font-weight: 600; color: var(--light); }
       .modal-close { border: none; background: rgba(238, 205, 142, 0.2); color: var(--text); border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+      .tag-section h3 { margin: 0 0 8px; font-size: 0.9rem; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; }
+      .tag-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+      .tag-list li { background: rgba(238, 205, 142, 0.1); border: 1px solid rgba(238, 205, 142, 0.2); padding: 6px 10px; border-radius: 999px; font-size: 0.8rem; }
+      .modal-body { padding: 24px; overflow: auto; }
       .image-stage { position: relative; }
       .image-stage img { width: 100%; height: auto; border-radius: 10px; transition: filter 0.3s ease; }
       .image-stage.loading img { filter: blur(12px); transform: scale(1.01); }
@@ -114,6 +133,8 @@
       .hint { font-size: 0.8rem; opacity: 0.8; margin-top: 8px; }
       @media (max-width: 900px) {
         main { grid-template-columns: 1fr; }
+        .modal-content { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+        .modal-sidebar { border-right: none; border-top: 1px solid var(--border); }
       }
     </style>
   </head>
@@ -147,20 +168,25 @@
     </main>
     <div class="modal" id="modal">
       <div class="modal-content">
-        <div class="modal-header">
-          <div class="modal-title" id="modalTitle"></div>
-          <button class="modal-close" id="modalClose">Close</button>
-        </div>
-        <div class="image-stage loading" id="imageStage">
-          <img id="modalImage" alt="" />
-        </div>
-        <div class="progress-bar" id="progressBar">
-          <div id="progressFill"></div>
-        </div>
-        <div class="controls">
-          <button class="button" id="loadFull">Load full</button>
-          <button class="button secondary" id="copyLink">Copy link</button>
-          <span id="modalMeta"></span>
+        <aside class="modal-sidebar">
+          <div class="modal-header">
+            <div class="modal-title" id="modalTitle"></div>
+            <button class="modal-close" id="modalClose">Back</button>
+          </div>
+          <div id="modalMeta"></div>
+          <div id="tagSections"></div>
+        </aside>
+        <div class="modal-body">
+          <div class="image-stage loading" id="imageStage">
+            <img id="modalImage" alt="" />
+          </div>
+          <div class="progress-bar" id="progressBar">
+            <div id="progressFill"></div>
+          </div>
+          <div class="controls">
+            <button class="button" id="loadFull">Load full</button>
+            <button class="button secondary" id="copyLink">Copy link</button>
+          </div>
         </div>
       </div>
     </div>

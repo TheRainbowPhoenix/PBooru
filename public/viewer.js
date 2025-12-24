@@ -35,6 +35,7 @@ const modalEl = document.getElementById("modal");
 const modalTitleEl = document.getElementById("modalTitle");
 const modalImageEl = document.getElementById("modalImage");
 const modalMetaEl = document.getElementById("modalMeta");
+const tagSectionsEl = document.getElementById("tagSections");
 const imageStageEl = document.getElementById("imageStage");
 const progressBarEl = document.getElementById("progressBar");
 const progressFillEl = document.getElementById("progressFill");
@@ -122,12 +123,58 @@ function openModal() {
   modalEl.classList.add("active");
 }
 
+function renderTagSection(title, tags) {
+  if (!tags.length) return;
+  const section = document.createElement("div");
+  section.className = "tag-section";
+
+  const heading = document.createElement("h3");
+  heading.textContent = title;
+  section.appendChild(heading);
+
+  const list = document.createElement("ul");
+  list.className = "tag-list";
+  tags.forEach((tag) => {
+    const item = document.createElement("li");
+    item.textContent = tag;
+    list.appendChild(item);
+  });
+  section.appendChild(list);
+  tagSectionsEl.appendChild(section);
+}
+
+function renderTags(tags) {
+  tagSectionsEl.innerHTML = "";
+  const artistTags = [];
+  const characterTags = [];
+  const otherTags = [];
+
+  tags.forEach((tag) => {
+    if (tag.startsWith("artist:")) {
+      artistTags.push(tag.replace(/^artist:/, ""));
+    } else if (tag.startsWith("character:")) {
+      characterTags.push(tag.replace(/^character:/, ""));
+    } else {
+      otherTags.push(tag);
+    }
+  });
+
+  artistTags.sort();
+  characterTags.sort();
+  otherTags.sort();
+
+  renderTagSection("Artist", artistTags);
+  renderTagSection("Character", characterTags);
+  renderTagSection("Tags", otherTags);
+}
+
 function closeModal() {
   modalEl.classList.remove("active");
   imageStageEl.classList.remove("loading");
   modalImageEl.src = "";
   modalTitleEl.textContent = "";
   modalMetaEl.textContent = "";
+  tagSectionsEl.innerHTML = "";
   setProgress(null);
   currentItem = null;
   for (const url of objectUrls) {
@@ -142,12 +189,10 @@ function closeModal() {
 let currentItem = null;
 let currentKeyBytes = null;
 let currentBaseUrl = null;
+let currentMetadataById = new Map();
 const objectUrls = new Set();
 
 modalCloseBtn.addEventListener("click", closeModal);
-modalEl.addEventListener("click", (event) => {
-  if (event.target === modalEl) closeModal();
-});
 
 copyLinkBtn.addEventListener("click", async () => {
   if (!currentItem) return;
@@ -186,6 +231,7 @@ document.getElementById("load").addEventListener("click", async () => {
     }
 
     const metadataById = new Map((metadata.items ?? []).map((item) => [item.id, item]));
+    currentMetadataById = metadataById;
     const items = manifest.items.map(normalizeManifestItem);
 
     statusEl.textContent = `Found ${items.length} items. Loading…`;
@@ -217,7 +263,7 @@ document.getElementById("load").addEventListener("click", async () => {
         });
 
         const cap = document.createElement("div");
-        const tags = item.tags?.length ? item.tags : metadataById.get(item.id)?.tags ?? [];
+        const tags = metadataById.get(item.id)?.tags ?? item.tags ?? [];
         const title = item.name || item.id.slice(0, 12);
         cap.innerHTML = `<strong>${title}</strong><br/><small>${item.full.ext}, ${item.full.bytes} bytes</small><small class="hash">${item.id.slice(0, 12)}…</small>`;
         if (tags.length) {
@@ -246,7 +292,7 @@ document.getElementById("load").addEventListener("click", async () => {
     if (hashId) {
       const selected = items.find((item) => item.id === hashId);
       if (selected) {
-        const tags = selected.tags?.length ? selected.tags : metadataById.get(selected.id)?.tags ?? [];
+        const tags = metadataById.get(selected.id)?.tags ?? selected.tags ?? [];
         await showItem(selected, tags);
       }
     }
@@ -261,7 +307,12 @@ async function showItem(item, tags) {
   currentItem = item;
   location.hash = encodeURIComponent(item.id);
   modalTitleEl.textContent = item.name || item.id;
-  modalMetaEl.textContent = tags?.length ? `Tags: ${tags.join(", ")}` : `Hash: ${item.id}`;
+  const metadata = currentMetadataById.get(item.id);
+  const rating = metadata?.rating ? `Rating: ${metadata.rating}` : null;
+  const source = metadata?.source ? `Source: ${metadata.source}` : null;
+  const metaParts = [rating, source].filter(Boolean);
+  modalMetaEl.textContent = metaParts.length ? metaParts.join(" · ") : `Hash: ${item.id}`;
+  renderTags(metadata?.tags ?? tags ?? []);
   openModal();
   imageStageEl.classList.add("loading");
   setProgress(null);
