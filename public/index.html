@@ -27,7 +27,7 @@
         justify-content: space-between;
         padding: 18px 32px;
         border-bottom: 1px solid rgba(238, 205, 142, 0.2);
-        backdrop-filter: blur(12px);
+        /* backdrop-filter: blur(12px); */
         background: rgba(12, 14, 24, 0.85);
         position: sticky;
         top: 0;
@@ -76,6 +76,9 @@
         position: relative;
         overflow: hidden;
         transition: border-color 0.2s ease;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
       }
       .card:hover { border-color: rgba(238, 205, 142, 0.45); }
       .card img { width: 100%; height: auto; display:block; border-radius: 12px; }
@@ -171,9 +174,9 @@
       .tag-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
       .tag-list li { background: rgba(238, 205, 142, 0.1); border: 1px solid rgba(238, 205, 142, 0.2); padding: 6px 10px; border-radius: 999px; font-size: 0.8rem; cursor: pointer; color: var(--light); }
       .modal-body { padding: 24px; overflow: hidden; display: flex; flex-direction: column; }
-      .image-stage { position: relative; flex: 1; display: flex; align-items: center; justify-content: center; }
+      .image-stage { overflow: auto; position: relative; flex: 1; display: flex; align-items: center; justify-content: center; }
       .image-stage img { max-width: 100%; max-height: 100%; width: auto; height: auto; border-radius: 10px; transition: filter 0.3s ease; }
-      .image-stage.loading img { filter: blur(12px); transform: scale(1.01); }
+      .image-stage.loading img { /* filter: blur(12px); transform: scale(1.01); */ }
       .progress-bar { height: 6px; background: rgba(238, 205, 142, 0.15); border-radius: 999px; overflow: hidden; margin-top: 10px; }
       .progress-bar > div { height: 100%; background: var(--light); width: 0%; transition: width 0.2s ease; }
       .button { border: none; background-color: var(--light); color: var(--dark); padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer; font-weight: 600; }
