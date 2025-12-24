@@ -1,0 +1,46 @@
+<!doctype html>
+<html>
+  <body>
+    <div id="grid" style="display:grid;grid-template-columns:repeat(auto-fill,220px);gap:12px;"></div>
+
+    <script type="module">
+      import { loadXorImageAsObjectURL } from "./xorImageLoader.js";
+
+      // IMPORTANT: this key is visible to everyone -> obfuscation only.
+      const XOR_KEY = "your-xor-key";
+
+      // Use jsDelivr (recommended) or raw.githubusercontent.com
+      // jsDelivr GitHub format: https://cdn.jsdelivr.net/gh/USER/REPO@REF/path
+      const ASSETS_BASE = "https://cdn.jsdelivr.net/gh/YOURUSER/YOURREPO@main";
+      const manifestUrl = `${ASSETS_BASE}/manifest.json`;
+
+      const { items } = await (await fetch(manifestUrl, { cache: "no-cache" })).json();
+
+      const grid = document.getElementById("grid");
+
+      for (const it of items) {
+        const card = document.createElement("div");
+        card.style.border = "1px solid #ddd";
+        card.style.padding = "8px";
+
+        const img = document.createElement("img");
+        img.loading = "lazy";
+        img.decoding = "async";
+        img.style.width = "100%";
+        img.style.height = "200px";
+        img.style.objectFit = "cover";
+        img.alt = it.id;
+
+        const encUrl = `${ASSETS_BASE}/encrypted/${it.file}`;
+        img.src = await loadXorImageAsObjectURL(encUrl, it.mime, XOR_KEY);
+
+        const meta = document.createElement("div");
+        meta.textContent = `${it.id} (${Math.round(it.bytes/1024)} KB)`;
+
+        card.appendChild(img);
+        card.appendChild(meta);
+        grid.appendChild(card);
+      }
+    </script>
+  </body>
+</html>
