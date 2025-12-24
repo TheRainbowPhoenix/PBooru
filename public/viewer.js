@@ -497,6 +497,7 @@ loadBtn.addEventListener("click", async () => {
   } catch (e) {
     console.error(e);
     statusEl.textContent = `Error: ${e.message ?? e}`;
+    showConnectionPanel();
   }
 });
 
