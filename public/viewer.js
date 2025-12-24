@@ -34,9 +34,15 @@ const gridEl = document.getElementById("grid");
 const filterBarEl = document.getElementById("filterBar");
 const tagsPanelEl = document.getElementById("tagsPanel");
 const galleryPanelEl = document.getElementById("galleryPanel");
+const connectionPanelEl = document.getElementById("connectionPanel");
+const loadingPanelEl = document.getElementById("loadingPanel");
 const tagDirectoryEl = document.getElementById("tagDirectory");
 const openTagsBtn = document.getElementById("openTags");
 const openPostsBtn = document.getElementById("openPosts");
+const openConnectionBtn = document.getElementById("openConnection");
+const baseUrlInput = document.getElementById("baseUrl");
+const keyInput = document.getElementById("key");
+const loadBtn = document.getElementById("load");
 const cacheName = "pbooru-decrypted-v1";
 const cacheUrlPrefix = "https://cache.pbooru.local/";
 const modalEl = document.getElementById("modal");
@@ -284,11 +290,29 @@ function renderFilterPill() {
 function showTagsPanel() {
   tagsPanelEl.classList.remove("hidden");
   galleryPanelEl.classList.add("hidden");
+  connectionPanelEl.classList.add("hidden");
+  loadingPanelEl.classList.add("hidden");
 }
 
 function showGalleryPanel() {
   tagsPanelEl.classList.add("hidden");
   galleryPanelEl.classList.remove("hidden");
+  connectionPanelEl.classList.add("hidden");
+  loadingPanelEl.classList.add("hidden");
+}
+
+function showConnectionPanel() {
+  tagsPanelEl.classList.add("hidden");
+  galleryPanelEl.classList.add("hidden");
+  connectionPanelEl.classList.remove("hidden");
+  loadingPanelEl.classList.add("hidden");
+}
+
+function showLoadingPanel() {
+  tagsPanelEl.classList.add("hidden");
+  galleryPanelEl.classList.add("hidden");
+  connectionPanelEl.classList.add("hidden");
+  loadingPanelEl.classList.remove("hidden");
 }
 
 function buildTagIndex() {
@@ -398,6 +422,19 @@ openTagsBtn.addEventListener("click", () => {
 openPostsBtn.addEventListener("click", () => {
   showGalleryPanel();
 });
+openConnectionBtn.addEventListener("click", () => {
+  showConnectionPanel();
+});
+
+const defaultBaseUrl = "https://cdn.jsdelivr.net/gh/TheRainbowPhoenix/PBooru@master/enc/";
+const defaultKey = "phoebefox";
+const savedBaseUrl = localStorage.getItem("pbooru.baseUrl") ?? defaultBaseUrl;
+const savedKey = localStorage.getItem("pbooru.key") ?? defaultKey;
+baseUrlInput.value = savedBaseUrl;
+keyInput.value = savedKey;
+
+showLoadingPanel();
+loadBtn.click();
 
 copyLinkBtn.addEventListener("click", async () => {
   if (!currentItem) return;
@@ -409,20 +446,23 @@ copyLinkBtn.addEventListener("click", async () => {
   }, 1500);
 });
 
-document.getElementById("load").addEventListener("click", async () => {
+loadBtn.addEventListener("click", async () => {
   gridEl.innerHTML = "";
   statusEl.textContent = "Loading manifest…";
   closeModal();
 
-  const baseUrl = document.getElementById("baseUrl").value.replace(/\/+$/, "");
-  const key = document.getElementById("key").value;
+  const baseUrl = baseUrlInput.value.replace(/\/+$/, "");
+  const key = keyInput.value;
   if (!baseUrl || !key) {
     statusEl.textContent = "Please fill base URL and key.";
     return;
   }
+  showLoadingPanel();
   const keyBytes = new TextEncoder().encode(key);
   currentKeyBytes = keyBytes;
   currentBaseUrl = baseUrl;
+  localStorage.setItem("pbooru.baseUrl", baseUrl);
+  localStorage.setItem("pbooru.key", key);
 
   try {
     const manifestUrl = `${baseUrl}/manifest.json`;
