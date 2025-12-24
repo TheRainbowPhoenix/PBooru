@@ -66,7 +66,7 @@ function pickVariant(item, variant) {
 }
 
 function buildEncUrl(baseUrl, bin) {
-  return `${baseUrl}/enc/${bin}`;
+  return `${baseUrl}/${bin}`;
 }
 
 async function fetchWithProgress(url, onProgress) {

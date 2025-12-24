@@ -40,8 +40,8 @@ function normalizeExt(ext) {
   return ext.toLowerCase().replace(".", "");
 }
 
-function buildVariantName(id, ext, variant) {
-  return `${variant}/${id}.${ext}.bin`;
+function buildVariantName(hash, ext, variant) {
+  return `${variant}/${hash}.${ext}.bin`;
 }
 
 async function ensureDirs(outDir) {
@@ -72,8 +72,8 @@ async function main() {
   const key = args.get("key");
   const thumbSize = Number(args.get("thumb_size") ?? "200");
   const clipSize = Number(args.get("clip_size") ?? "800");
-  const manifestPath = args.get("manifest") ?? "manifest.json";
-  const metadataPath = args.get("metadata") ?? "metadata.json";
+  const manifestPath = args.get("manifest") ?? path.join(outDir, "manifest.json");
+  const metadataPath = args.get("metadata") ?? path.join(outDir, "metadata.json");
 
   if (!key) {
     throw new Error("Missing --key (XOR key used for encryption).");
@@ -99,6 +99,7 @@ async function main() {
     const sourcePath = path.join(rawDir, name);
     const raw = await fs.readFile(sourcePath);
     const originalExt = normalizeExt(ext);
+    const hash = sha256Hex(raw);
     const image = sharp(raw, { animated: true });
     const info = await image.metadata();
     const width = info.width ?? null;
@@ -120,9 +121,9 @@ async function main() {
     const thumbEnc = xorBytes(thumbBuffer, keyBytes);
     const clipEnc = xorBytes(clipBuffer, keyBytes);
 
-    const fullName = buildVariantName(id, originalExt, "full");
-    const thumbName = buildVariantName(id, thumbExt, "thumb");
-    const clipName = buildVariantName(id, clipExt, "clip");
+    const fullName = buildVariantName(hash, originalExt, "full");
+    const thumbName = buildVariantName(hash, thumbExt, "thumb");
+    const clipName = buildVariantName(hash, clipExt, "clip");
 
     await fs.writeFile(path.join(outDir, fullName), fullEnc);
     await fs.writeFile(path.join(outDir, thumbName), thumbEnc);
@@ -130,11 +131,12 @@ async function main() {
 
     items.push({
       id,
+      hash,
       full: {
         bin: fullName,
         ext: originalExt,
         bytes: raw.length,
-        sha256: sha256Hex(raw),
+        sha256: hash,
         width,
         height,
       },
