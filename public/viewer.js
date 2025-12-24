@@ -51,6 +51,7 @@ function normalizeManifestItem(item) {
   if (item.full || item.thumb || item.clip) return item;
   return {
     id: item.id,
+    name: item.name,
     full: { bin: item.bin, ext: item.ext, bytes: item.bytes, sha256: item.sha256 },
     clip: { bin: item.bin, ext: item.ext },
     thumb: { bin: item.bin, ext: item.ext },
@@ -129,6 +130,10 @@ function closeModal() {
   modalMetaEl.textContent = "";
   setProgress(null);
   currentItem = null;
+  for (const url of objectUrls) {
+    URL.revokeObjectURL(url);
+  }
+  objectUrls.clear();
   if (location.hash) {
     history.replaceState(null, "", location.pathname + location.search);
   }
@@ -137,6 +142,7 @@ function closeModal() {
 let currentItem = null;
 let currentKeyBytes = null;
 let currentBaseUrl = null;
+const objectUrls = new Set();
 
 modalCloseBtn.addEventListener("click", closeModal);
 modalEl.addEventListener("click", (event) => {
@@ -192,19 +198,28 @@ document.getElementById("load").addEventListener("click", async () => {
       while (idx < items.length) {
         const item = items[idx++];
         const objUrl = await decryptVariant(item, "thumb", keyBytes, baseUrl);
+        objectUrls.add(objUrl);
 
         const card = document.createElement("div");
         card.className = "card";
         card.dataset.id = item.id;
 
+        const skeleton = document.createElement("div");
+        skeleton.className = "thumb-skeleton";
+
         const img = document.createElement("img");
         img.loading = "lazy";
         img.src = objUrl;
-        img.alt = item.id;
+        img.alt = item.name ?? item.id;
+        img.addEventListener("load", () => {
+          card.classList.remove("loading");
+          skeleton.remove();
+        });
 
         const cap = document.createElement("div");
         const tags = item.tags?.length ? item.tags : metadataById.get(item.id)?.tags ?? [];
-        cap.innerHTML = `<strong>${item.id}</strong><br/><small>${item.full.ext}, ${item.full.bytes} bytes</small>`;
+        const title = item.name || item.id.slice(0, 12);
+        cap.innerHTML = `<strong>${title}</strong><br/><small>${item.full.ext}, ${item.full.bytes} bytes</small><small class="hash">${item.id.slice(0, 12)}…</small>`;
         if (tags.length) {
           const tagEl = document.createElement("div");
           tagEl.className = "tags";
@@ -212,6 +227,8 @@ document.getElementById("load").addEventListener("click", async () => {
           cap.appendChild(tagEl);
         }
 
+        card.classList.add("loading");
+        card.appendChild(skeleton);
         card.addEventListener("click", async () => {
           await showItem(item, tags);
         });
@@ -243,13 +260,14 @@ async function showItem(item, tags) {
   if (!currentKeyBytes || !currentBaseUrl) return;
   currentItem = item;
   location.hash = encodeURIComponent(item.id);
-  modalTitleEl.textContent = item.id;
-  modalMetaEl.textContent = tags?.length ? `Tags: ${tags.join(", ")}` : "";
+  modalTitleEl.textContent = item.name || item.id;
+  modalMetaEl.textContent = tags?.length ? `Tags: ${tags.join(", ")}` : `Hash: ${item.id}`;
   openModal();
   imageStageEl.classList.add("loading");
   setProgress(null);
 
   const clipUrl = await decryptVariant(item, "clip", currentKeyBytes, currentBaseUrl);
+  objectUrls.add(clipUrl);
   modalImageEl.src = clipUrl;
   imageStageEl.classList.remove("loading");
 
@@ -264,6 +282,7 @@ async function showItem(item, tags) {
       currentBaseUrl,
       (progress) => setProgress(progress),
     );
+    objectUrls.add(fullUrl);
     modalImageEl.src = fullUrl;
     imageStageEl.classList.remove("loading");
     setProgress(1);

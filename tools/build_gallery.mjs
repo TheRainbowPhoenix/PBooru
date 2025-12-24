@@ -95,7 +95,7 @@ async function main() {
     const ext = path.extname(name).toLowerCase();
     if (!IMAGE_EXTENSIONS.has(ext)) continue;
 
-    const id = path.basename(name, ext);
+    const originalName = path.basename(name, ext);
     const sourcePath = path.join(rawDir, name);
     const raw = await fs.readFile(sourcePath);
     const originalExt = normalizeExt(ext);
@@ -130,8 +130,8 @@ async function main() {
     await fs.writeFile(path.join(outDir, clipName), clipEnc);
 
     items.push({
-      id,
-      hash,
+      id: hash,
+      name: originalName,
       full: {
         bin: fullName,
         ext: originalExt,
@@ -150,7 +150,7 @@ async function main() {
         ext: thumbExt,
         bytes: thumbBuffer.length,
       },
-      tags: metadataById.get(id)?.tags ?? [],
+      tags: metadataById.get(hash)?.tags ?? [],
     });
   }
 
@@ -166,6 +166,7 @@ async function main() {
     const existing = metadataById.get(item.id);
     return {
       id: item.id,
+      name: item.name ?? "",
       tags: existing?.tags ?? [],
       rating: existing?.rating ?? "safe",
       source: existing?.source ?? "",

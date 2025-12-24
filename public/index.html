@@ -5,47 +5,146 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Encrypted booru PoC</title>
     <style>
-      body { font-family: system-ui, sans-serif; margin: 20px; }
-      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
-      .card { border: 1px solid #ddd; border-radius: 10px; padding: 10px; cursor: pointer; background: #fff; }
-      img { width: 100%; height: auto; display:block; border-radius: 8px; }
-      input { width: 100%; padding: 8px; margin: 6px 0 12px; }
-      small { opacity: 0.7; }
-      .tags { color: #444; margin-top: 6px; font-size: 0.9rem; }
-      .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 10; }
+      :root {
+        --light: #eecd8e;
+        --dark: #131420;
+        --text: #eadbca;
+        --accent: #61d9ff;
+        --card: rgba(23, 25, 39, 0.88);
+        --border: rgba(238, 205, 142, 0.25);
+        --glow: 0 0 20px rgba(97, 217, 255, 0.15);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+        background: radial-gradient(circle at top, rgba(42, 52, 88, 0.65), var(--dark));
+        color: var(--text);
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 32px;
+        border-bottom: 1px solid rgba(238, 205, 142, 0.2);
+        backdrop-filter: blur(12px);
+        background: rgba(12, 14, 24, 0.85);
+        position: sticky;
+        top: 0;
+        z-index: 5;
+      }
+      header h1 { margin: 0; font-size: 1.6rem; letter-spacing: 2px; }
+      .accent { color: var(--light); text-shadow: var(--glow); }
+      main { display: grid; grid-template-columns: 260px 1fr; gap: 24px; padding: 24px 32px; }
+      .panel {
+        background: var(--card);
+        border: 1px solid var(--border);
+        padding: 18px;
+        border-radius: 16px;
+        box-shadow: var(--glow);
+      }
+      .panel h2 { margin: 0 0 12px; font-size: 1.1rem; color: var(--light); }
+      label { display: block; font-size: 0.85rem; margin-bottom: 10px; }
+      input {
+        width: 100%;
+        padding: 10px 12px;
+        margin-top: 6px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: rgba(7, 9, 16, 0.7);
+        color: var(--text);
+      }
+      button {
+        width: 100%;
+        border: none;
+        border-radius: 10px;
+        padding: 10px 14px;
+        background: linear-gradient(135deg, rgba(238, 205, 142, 0.95), rgba(97, 217, 255, 0.65));
+        color: #1c1d2c;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: var(--glow);
+      }
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+      .card {
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 12px;
+        cursor: pointer;
+        background: var(--card);
+        box-shadow: var(--glow);
+        position: relative;
+        overflow: hidden;
+        transition: transform 0.2s ease, border-color 0.2s ease;
+      }
+      .card:hover { transform: translateY(-4px); border-color: rgba(97, 217, 255, 0.5); }
+      .card img { width: 100%; height: auto; display:block; border-radius: 12px; }
+      .card.loading img { opacity: 0; }
+      .thumb-skeleton {
+        position: absolute;
+        inset: 12px 12px auto 12px;
+        height: 160px;
+        border-radius: 12px;
+        background: linear-gradient(90deg, rgba(238, 205, 142, 0.15), rgba(97, 217, 255, 0.3), rgba(238, 205, 142, 0.15));
+        background-size: 200% 100%;
+        animation: shimmer 1.4s infinite;
+      }
+      @keyframes shimmer {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+      }
+      small { opacity: 0.75; display: block; }
+      small.hash { font-size: 0.75rem; letter-spacing: 1px; margin-top: 4px; }
+      .tags { color: var(--accent); margin-top: 6px; font-size: 0.85rem; }
+      #status { margin: 12px 0; color: var(--light); }
+      .modal { position: fixed; inset: 0; background: rgba(5, 6, 12, 0.8); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 10; }
       .modal.active { display: flex; }
-      .modal-content { background: #fff; padding: 16px; border-radius: 12px; max-width: min(90vw, 1100px); width: 100%; max-height: 90vh; overflow: auto; }
+      .modal-content { background: var(--card); padding: 16px; border-radius: 16px; max-width: min(90vw, 1100px); width: 100%; max-height: 90vh; overflow: auto; border: 1px solid var(--border); box-shadow: var(--glow); }
       .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-      .modal-title { font-weight: 600; }
-      .modal-close { border: none; background: #eee; border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+      .modal-title { font-weight: 600; color: var(--light); }
+      .modal-close { border: none; background: rgba(238, 205, 142, 0.2); color: var(--text); border-radius: 6px; padding: 6px 10px; cursor: pointer; }
       .image-stage { position: relative; }
       .image-stage img { width: 100%; height: auto; border-radius: 10px; transition: filter 0.3s ease; }
       .image-stage.loading img { filter: blur(12px); transform: scale(1.01); }
-      .progress-bar { height: 6px; background: #eee; border-radius: 999px; overflow: hidden; margin-top: 10px; }
-      .progress-bar > div { height: 100%; background: #4a7cf7; width: 0%; transition: width 0.2s ease; }
+      .progress-bar { height: 6px; background: rgba(238, 205, 142, 0.15); border-radius: 999px; overflow: hidden; margin-top: 10px; }
+      .progress-bar > div { height: 100%; background: linear-gradient(90deg, var(--light), var(--accent)); width: 0%; transition: width 0.2s ease; }
       .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; align-items: center; }
-      .button { border: none; background: #4a7cf7; color: #fff; padding: 8px 12px; border-radius: 6px; cursor: pointer; }
-      .button.secondary { background: #eaeaea; color: #222; }
+      .button { border: none; background: linear-gradient(135deg, rgba(238, 205, 142, 0.95), rgba(97, 217, 255, 0.65)); color: #1c1d2c; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+      .button.secondary { background: rgba(238, 205, 142, 0.15); color: var(--text); }
+      .hint { font-size: 0.8rem; opacity: 0.8; margin-top: 8px; }
+      @media (max-width: 900px) {
+        main { grid-template-columns: 1fr; }
+      }
     </style>
   </head>
   <body>
-    <h1>Encrypted booru PoC</h1>
+    <header>
+      <h1>PB<span class="accent">ooru</span></h1>
+      <div class="accent">Encrypted Cyber Shrine</div>
+    </header>
 
-    <label>
-      Assets base URL (enc/ root with manifest.json):
-      <input id="baseUrl" placeholder="https://cdn.jsdelivr.net/gh/TheRainbowPhoenix/PBooru@master/enc" />
-    </label>
-    
-    <label>
-      XOR key:
-      <input id="key" placeholder="same key used in encode.py" />
-    </label>
+    <main>
+      <section class="panel">
+        <h2>Connection</h2>
+        <label>
+          Assets base URL (enc/ root with manifest.json):
+          <input id="baseUrl" placeholder="https://cdn.jsdelivr.net/gh/TheRainbowPhoenix/PBooru@master/enc" />
+        </label>
+        
+        <label>
+          XOR key:
+          <input id="key" placeholder="same key used in encode.py" />
+        </label>
 
-    <button id="load">Load gallery</button>
-    <p><small>This is obfuscation only. If the browser can decrypt, users can extract it.</small></p>
+        <button id="load">Load gallery</button>
+        <p class="hint"><small>This is obfuscation only. If the browser can decrypt, users can extract it.</small></p>
+        <div id="status"></div>
+      </section>
 
-    <div id="status"></div>
-    <div class="grid" id="grid"></div>
+      <section>
+        <div class="grid" id="grid"></div>
+      </section>
+    </main>
     <div class="modal" id="modal">
       <div class="modal-content">
         <div class="modal-header">
