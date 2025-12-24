@@ -201,6 +201,10 @@ function closeModal() {
   tagSectionsEl.innerHTML = "";
   setProgress(null);
   currentItem = null;
+  fullLoadInFlight = false;
+  fullLoaded = false;
+  loadFullBtn.textContent = "Load full";
+  loadFullBtn.disabled = false;
   if (fullAutoTimer) {
     clearTimeout(fullAutoTimer);
     fullAutoTimer = null;
@@ -223,6 +227,8 @@ let currentFilterTag = null;
 const blobCache = new Map();
 const modalUrls = new Set();
 let fullAutoTimer = null;
+let fullLoadInFlight = false;
+let fullLoaded = false;
 
 function toCacheUrl(cacheKey) {
   return `${cacheUrlPrefix}${encodeURIComponent(cacheKey)}`;
@@ -234,6 +240,14 @@ async function getCachedBlob(cacheKey) {
   const cached = await cache.match(toCacheUrl(cacheKey));
   if (!cached) return null;
   return cached.blob();
+}
+
+async function hasCachedBlob(cacheKey) {
+  if (blobCache.has(cacheKey)) return true;
+  if (!("caches" in window)) return false;
+  const cache = await caches.open(cacheName);
+  const cached = await cache.match(toCacheUrl(cacheKey));
+  return Boolean(cached);
 }
 
 async function setCachedBlob(cacheKey, blob) {
@@ -449,6 +463,8 @@ document.getElementById("load").addEventListener("click", async () => {
 async function showItem(item, tags) {
   if (!currentKeyBytes || !currentBaseUrl) return;
   currentItem = item;
+  fullLoadInFlight = false;
+  fullLoaded = false;
   location.hash = encodeURIComponent(item.id);
   modalTitleEl.textContent = item.name || "Untitled";
   const metadata = currentMetadataById.get(item.id);
@@ -466,8 +482,25 @@ async function showItem(item, tags) {
   modalImageEl.src = clipUrl;
   imageStageEl.classList.remove("loading");
 
+  const fullCacheKey = `pbooru:full:${item.id}:${item.full.ext}`;
+  if (await hasCachedBlob(fullCacheKey)) {
+    fullLoaded = true;
+    const fullUrl = await decryptVariant(item, "full", currentKeyBytes, currentBaseUrl);
+    modalUrls.add(fullUrl);
+    modalImageEl.src = fullUrl;
+    loadFullBtn.textContent = "Loaded";
+    loadFullBtn.disabled = true;
+  } else {
+    loadFullBtn.textContent = "Load full";
+    loadFullBtn.disabled = false;
+  }
+
   const loadFull = async () => {
+    if (fullLoadInFlight || fullLoaded) return;
     if (!currentItem) return;
+    fullLoadInFlight = true;
+    loadFullBtn.textContent = "Loading...";
+    loadFullBtn.disabled = true;
     imageStageEl.classList.add("loading");
     setProgress(0);
     const fullUrl = await decryptVariant(
@@ -482,6 +515,10 @@ async function showItem(item, tags) {
     imageStageEl.classList.remove("loading");
     setProgress(1);
     setTimeout(() => setProgress(null), 800);
+    fullLoaded = true;
+    fullLoadInFlight = false;
+    loadFullBtn.textContent = "Loaded";
+    loadFullBtn.disabled = true;
   };
   loadFullBtn.onclick = loadFull;
   if (fullAutoTimer) clearTimeout(fullAutoTimer);
