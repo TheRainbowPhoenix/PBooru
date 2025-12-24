@@ -18,7 +18,7 @@
       body {
         margin: 0;
         font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
-        background: radial-gradient(circle at top, rgba(42, 52, 88, 0.65), var(--dark));
+        background: var(--dark);
         color: var(--text);
       }
       header {
@@ -59,27 +59,51 @@
         border: none;
         border-radius: 10px;
         padding: 10px 14px;
-        background: linear-gradient(135deg, rgba(238, 205, 142, 0.95), rgba(97, 217, 255, 0.65));
-        color: #1c1d2c;
+        background-color: var(--light);
+        color: var(--dark);
         font-weight: 700;
         cursor: pointer;
         box-shadow: var(--glow);
       }
       .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
       .card {
-        border: 1px solid var(--border);
+        border: 1px solid rgba(238, 205, 142, 0.2);
         border-radius: 16px;
-        padding: 12px;
+        padding: 10px;
         cursor: pointer;
         background: var(--card);
         box-shadow: var(--glow);
         position: relative;
         overflow: hidden;
-        transition: transform 0.2s ease, border-color 0.2s ease;
+        transition: border-color 0.2s ease;
       }
-      .card:hover { transform: translateY(-4px); border-color: rgba(97, 217, 255, 0.5); }
+      .card:hover { border-color: rgba(238, 205, 142, 0.45); }
       .card img { width: 100%; height: auto; display:block; border-radius: 12px; }
       .card.loading img { opacity: 0; }
+      .card-info {
+        position: absolute;
+        inset: 10px;
+        background: rgba(12, 12, 18, 0.85);
+        color: var(--text);
+        border-radius: 12px;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        pointer-events: none;
+      }
+      .card:hover .card-info { opacity: 1; }
+      .card-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+      .tag-pill {
+        background: rgba(238, 205, 142, 0.18);
+        border: 1px solid rgba(238, 205, 142, 0.3);
+        color: var(--light);
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 0.75rem;
+      }
       .thumb-skeleton {
         position: absolute;
         inset: 12px 12px auto 12px;
@@ -95,32 +119,93 @@
       }
       small { opacity: 0.75; display: block; }
       small.hash { font-size: 0.75rem; letter-spacing: 1px; margin-top: 4px; }
-      .tags { color: var(--accent); margin-top: 6px; font-size: 0.85rem; }
       #status { margin: 12px 0; color: var(--light); }
-      .modal { position: fixed; inset: 0; background: rgba(5, 6, 12, 0.8); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 10; }
-      .modal.active { display: flex; }
-      .modal-content { background: var(--card); padding: 16px; border-radius: 16px; max-width: min(90vw, 1100px); width: 100%; max-height: 90vh; overflow: auto; border: 1px solid var(--border); box-shadow: var(--glow); }
-      .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+      #filterBar { margin-bottom: 12px; display: flex; gap: 10px; flex-wrap: wrap; }
+      .filter-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(238, 205, 142, 0.18);
+        border: 1px solid rgba(238, 205, 142, 0.3);
+        color: var(--light);
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 0.8rem;
+      }
+      .filter-pill button {
+        background: transparent;
+        border: none;
+        color: var(--light);
+        font-size: 0.9rem;
+        cursor: pointer;
+        padding: 0;
+      }
+      .modal { position: fixed; inset: 0; background: rgba(5, 6, 12, 0.92); display: none; z-index: 10; }
+      .modal.active { display: block; }
+      .modal-content {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        height: 100%;
+        width: 100%;
+        background: rgba(10, 12, 22, 0.95);
+        border-left: 1px solid var(--border);
+      }
+      .modal-sidebar {
+        background: rgba(15, 18, 32, 0.95);
+        border-right: 1px solid var(--border);
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .sidebar-footer {
+        margin-top: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .modal-header { display: flex; justify-content: space-between; align-items: center; }
       .modal-title { font-weight: 600; color: var(--light); }
-      .modal-close { border: none; background: rgba(238, 205, 142, 0.2); color: var(--text); border-radius: 6px; padding: 6px 10px; cursor: pointer; }
-      .image-stage { position: relative; }
-      .image-stage img { width: 100%; height: auto; border-radius: 10px; transition: filter 0.3s ease; }
+      .modal-close { border: none; background: rgba(238, 205, 142, 0.2); color: var(--text); border-radius: 6px; padding: 6px 10px; cursor: pointer; align-self: flex-start; }
+      .tag-section h3 { margin: 0 0 8px; font-size: 0.9rem; color: var(--light); text-transform: uppercase; letter-spacing: 1px; }
+      .tag-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+      .tag-list li { background: rgba(238, 205, 142, 0.1); border: 1px solid rgba(238, 205, 142, 0.2); padding: 6px 10px; border-radius: 999px; font-size: 0.8rem; cursor: pointer; color: var(--light); }
+      .modal-body { padding: 24px; overflow: hidden; display: flex; flex-direction: column; }
+      .image-stage { position: relative; flex: 1; display: flex; align-items: center; justify-content: center; }
+      .image-stage img { max-width: 100%; max-height: 100%; width: auto; height: auto; border-radius: 10px; transition: filter 0.3s ease; }
       .image-stage.loading img { filter: blur(12px); transform: scale(1.01); }
       .progress-bar { height: 6px; background: rgba(238, 205, 142, 0.15); border-radius: 999px; overflow: hidden; margin-top: 10px; }
-      .progress-bar > div { height: 100%; background: linear-gradient(90deg, var(--light), var(--accent)); width: 0%; transition: width 0.2s ease; }
-      .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; align-items: center; }
-      .button { border: none; background: linear-gradient(135deg, rgba(238, 205, 142, 0.95), rgba(97, 217, 255, 0.65)); color: #1c1d2c; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+      .progress-bar > div { height: 100%; background: var(--light); width: 0%; transition: width 0.2s ease; }
+      .button { border: none; background-color: var(--light); color: var(--dark); padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer; font-weight: 600; }
       .button.secondary { background: rgba(238, 205, 142, 0.15); color: var(--text); }
       .hint { font-size: 0.8rem; opacity: 0.8; margin-top: 8px; }
       @media (max-width: 900px) {
         main { grid-template-columns: 1fr; }
+        .modal-content { display: flex; flex-direction: column-reverse; }
+        .modal-sidebar { border-right: none; border-top: 1px solid var(--border); }
+      }
+      .hidden { display: none; }
+      .header-actions { display: flex; gap: 8px; }
+      .menu-button { background: transparent; border: 1px solid rgba(238, 205, 142, 0.3); color: var(--light); padding: 4px 10px; border-radius: 999px; cursor: pointer; font-size: 0.85rem; }
+      .tag-directory { display: grid; gap: 8px; }
+      .tag-directory button {
+        width: 100%;
+        text-align: left;
+        background: rgba(238, 205, 142, 0.08);
+        border: 1px solid rgba(238, 205, 142, 0.2);
+        color: var(--light);
+        padding: 8px 12px;
+        border-radius: 10px;
       }
     </style>
   </head>
   <body>
     <header>
       <h1>PB<span class="accent">ooru</span></h1>
-      <div class="accent">Encrypted Cyber Shrine</div>
+      <div class="header-actions">
+        <button class="menu-button" id="openPosts">Posts</button>
+        <button class="menu-button" id="openTags">Tags</button>
+      </div>
     </header>
 
     <main>
@@ -141,26 +226,34 @@
         <div id="status"></div>
       </section>
 
-      <section>
+      <section id="galleryPanel">
+        <div id="filterBar"></div>
         <div class="grid" id="grid"></div>
+      </section>
+      <section id="tagsPanel" class="panel hidden">
+        <h2>Tags</h2>
+        <div class="tag-directory" id="tagDirectory"></div>
       </section>
     </main>
     <div class="modal" id="modal">
       <div class="modal-content">
-        <div class="modal-header">
+        <aside class="modal-sidebar">
+          <button class="modal-close" id="modalClose">Back</button>
           <div class="modal-title" id="modalTitle"></div>
-          <button class="modal-close" id="modalClose">Close</button>
-        </div>
-        <div class="image-stage loading" id="imageStage">
-          <img id="modalImage" alt="" />
-        </div>
-        <div class="progress-bar" id="progressBar">
-          <div id="progressFill"></div>
-        </div>
-        <div class="controls">
-          <button class="button" id="loadFull">Load full</button>
-          <button class="button secondary" id="copyLink">Copy link</button>
-          <span id="modalMeta"></span>
+          <div id="modalMeta"></div>
+          <div id="tagSections"></div>
+          <div class="sidebar-footer">
+            <button class="button" id="loadFull">Load full</button>
+            <button class="button secondary" id="copyLink">Copy link</button>
+          </div>
+        </aside>
+        <div class="modal-body">
+          <div class="image-stage loading" id="imageStage">
+            <img id="modalImage" alt="" />
+          </div>
+          <div class="progress-bar" id="progressBar">
+            <div id="progressFill"></div>
+          </div>
         </div>
       </div>
     </div>

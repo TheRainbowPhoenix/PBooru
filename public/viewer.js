@@ -31,10 +31,19 @@ async function fetchArrayBuffer(url) {
 
 const statusEl = document.getElementById("status");
 const gridEl = document.getElementById("grid");
+const filterBarEl = document.getElementById("filterBar");
+const tagsPanelEl = document.getElementById("tagsPanel");
+const galleryPanelEl = document.getElementById("galleryPanel");
+const tagDirectoryEl = document.getElementById("tagDirectory");
+const openTagsBtn = document.getElementById("openTags");
+const openPostsBtn = document.getElementById("openPosts");
+const cacheName = "pbooru-decrypted-v1";
+const cacheUrlPrefix = "https://cache.pbooru.local/";
 const modalEl = document.getElementById("modal");
 const modalTitleEl = document.getElementById("modalTitle");
 const modalImageEl = document.getElementById("modalImage");
 const modalMetaEl = document.getElementById("modalMeta");
+const tagSectionsEl = document.getElementById("tagSections");
 const imageStageEl = document.getElementById("imageStage");
 const progressBarEl = document.getElementById("progressBar");
 const progressFillEl = document.getElementById("progressFill");
@@ -101,11 +110,23 @@ async function fetchWithProgress(url, onProgress) {
 
 async function decryptVariant(item, variant, keyBytes, baseUrl, progressCb = null) {
   const variantData = pickVariant(item, variant);
+  const cacheKey = `pbooru:${variant}:${item.id}:${variantData.ext}`;
+  const memBlob = blobCache.get(cacheKey);
+  if (memBlob) {
+    return URL.createObjectURL(memBlob);
+  }
+  const cachedBlob = await getCachedBlob(cacheKey);
+  if (cachedBlob) {
+    blobCache.set(cacheKey, cachedBlob);
+    return URL.createObjectURL(cachedBlob);
+  }
   const binUrl = buildEncUrl(baseUrl, variantData.bin);
   const buf = progressCb ? await fetchWithProgress(binUrl, progressCb) : await fetchArrayBuffer(binUrl);
   const enc = new Uint8Array(buf);
   const dec = xorBytes(enc, keyBytes);
   const blob = new Blob([dec], { type: extToMime(variantData.ext) });
+  await setCachedBlob(cacheKey, blob);
+  blobCache.set(cacheKey, blob);
   return URL.createObjectURL(blob);
 }
 
@@ -122,18 +143,72 @@ function openModal() {
   modalEl.classList.add("active");
 }
 
+function renderTagSection(title, tags) {
+  if (!tags.length) return;
+  const section = document.createElement("div");
+  section.className = "tag-section";
+
+  const heading = document.createElement("h3");
+  heading.textContent = title;
+  section.appendChild(heading);
+
+  const list = document.createElement("ul");
+  list.className = "tag-list";
+  tags.forEach((tag) => {
+    const item = document.createElement("li");
+    item.textContent = tag.label;
+    item.addEventListener("click", () => {
+      closeModal();
+      applyTagFilter(tag.filter);
+    });
+    list.appendChild(item);
+  });
+  section.appendChild(list);
+  tagSectionsEl.appendChild(section);
+}
+
+function renderTags(tags) {
+  tagSectionsEl.innerHTML = "";
+  const artistTags = [];
+  const characterTags = [];
+  const otherTags = [];
+
+  tags.forEach((tag) => {
+    if (tag.startsWith("artist:")) {
+      artistTags.push({ label: tag.replace(/^artist:/, ""), filter: tag });
+    } else if (tag.startsWith("character:")) {
+      characterTags.push({ label: tag.replace(/^character:/, ""), filter: tag });
+    } else {
+      otherTags.push({ label: tag, filter: tag });
+    }
+  });
+
+  artistTags.sort((a, b) => a.label.localeCompare(b.label));
+  characterTags.sort((a, b) => a.label.localeCompare(b.label));
+  otherTags.sort((a, b) => a.label.localeCompare(b.label));
+
+  renderTagSection("Artist", artistTags);
+  renderTagSection("Character", characterTags);
+  renderTagSection("Tags", otherTags);
+}
+
 function closeModal() {
   modalEl.classList.remove("active");
   imageStageEl.classList.remove("loading");
   modalImageEl.src = "";
   modalTitleEl.textContent = "";
   modalMetaEl.textContent = "";
+  tagSectionsEl.innerHTML = "";
   setProgress(null);
   currentItem = null;
-  for (const url of objectUrls) {
+  if (fullAutoTimer) {
+    clearTimeout(fullAutoTimer);
+    fullAutoTimer = null;
+  }
+  for (const url of modalUrls) {
     URL.revokeObjectURL(url);
   }
-  objectUrls.clear();
+  modalUrls.clear();
   if (location.hash) {
     history.replaceState(null, "", location.pathname + location.search);
   }
@@ -142,11 +217,172 @@ function closeModal() {
 let currentItem = null;
 let currentKeyBytes = null;
 let currentBaseUrl = null;
-const objectUrls = new Set();
+let currentMetadataById = new Map();
+let currentItems = [];
+let currentFilterTag = null;
+const blobCache = new Map();
+const modalUrls = new Set();
+let fullAutoTimer = null;
+
+function toCacheUrl(cacheKey) {
+  return `${cacheUrlPrefix}${encodeURIComponent(cacheKey)}`;
+}
+
+async function getCachedBlob(cacheKey) {
+  if (!("caches" in window)) return null;
+  const cache = await caches.open(cacheName);
+  const cached = await cache.match(toCacheUrl(cacheKey));
+  if (!cached) return null;
+  return cached.blob();
+}
+
+async function setCachedBlob(cacheKey, blob) {
+  if (!("caches" in window)) return;
+  const cache = await caches.open(cacheName);
+  await cache.put(toCacheUrl(cacheKey), new Response(blob));
+}
+
+function applyTagFilter(tag) {
+  currentFilterTag = tag;
+  renderFilterPill();
+  showGalleryPanel();
+  renderGrid();
+}
+
+function renderFilterPill() {
+  filterBarEl.innerHTML = "";
+  if (!currentFilterTag) return;
+  const pill = document.createElement("div");
+  pill.className = "filter-pill";
+  pill.textContent = currentFilterTag;
+  const closeBtn = document.createElement("button");
+  closeBtn.type = "button";
+  closeBtn.textContent = "×";
+  closeBtn.addEventListener("click", () => {
+    currentFilterTag = null;
+    renderFilterPill();
+    renderGrid();
+  });
+  pill.appendChild(closeBtn);
+  filterBarEl.appendChild(pill);
+}
+
+function showTagsPanel() {
+  tagsPanelEl.classList.remove("hidden");
+  galleryPanelEl.classList.add("hidden");
+}
+
+function showGalleryPanel() {
+  tagsPanelEl.classList.add("hidden");
+  galleryPanelEl.classList.remove("hidden");
+}
+
+function buildTagIndex() {
+  const counts = new Map();
+  currentItems.forEach((item) => {
+    const tags = currentMetadataById.get(item.id)?.tags ?? item.tags ?? [];
+    tags.forEach((tag) => {
+      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    });
+  });
+  return Array.from(counts.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+}
+
+function renderTagDirectory() {
+  tagDirectoryEl.innerHTML = "";
+  const tags = buildTagIndex();
+  tags.forEach(([tag, count]) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = `${tag} (${count})`;
+    button.addEventListener("click", () => {
+      applyTagFilter(tag);
+    });
+    tagDirectoryEl.appendChild(button);
+  });
+}
+
+async function renderGrid() {
+  gridEl.innerHTML = "";
+  const itemsToShow = currentFilterTag
+    ? currentItems.filter((item) => {
+        const tags = currentMetadataById.get(item.id)?.tags ?? item.tags ?? [];
+        return tags.includes(currentFilterTag);
+      })
+    : currentItems;
+
+  const concurrency = 6;
+  let idx = 0;
+
+  async function worker() {
+    while (idx < itemsToShow.length) {
+      const item = itemsToShow[idx++];
+      const objUrl = await decryptVariant(item, "thumb", currentKeyBytes, currentBaseUrl);
+
+      const card = document.createElement("div");
+      card.className = "card";
+      card.dataset.id = item.id;
+
+      const skeleton = document.createElement("div");
+      skeleton.className = "thumb-skeleton";
+
+      const img = document.createElement("img");
+      img.loading = "lazy";
+      img.src = objUrl;
+      img.alt = item.name ?? item.id;
+      img.addEventListener("load", () => {
+        card.classList.remove("loading");
+        skeleton.remove();
+      });
+
+      const info = document.createElement("div");
+      info.className = "card-info";
+      const tags = currentMetadataById.get(item.id)?.tags ?? item.tags ?? [];
+      const details = document.createElement("div");
+      const bytesKb = (item.full.bytes / 1024).toFixed(1);
+      details.textContent = `${item.full.width ?? "?"}x${item.full.height ?? "?"}, ${bytesKb}KB ${item.full.ext.toUpperCase()}`;
+      info.appendChild(details);
+
+      if (tags.length) {
+        const tagWrap = document.createElement("div");
+        tagWrap.className = "card-tags";
+        tags.slice(0, 8).forEach((tag) => {
+          const pill = document.createElement("span");
+          pill.className = "tag-pill";
+          pill.textContent = tag;
+          tagWrap.appendChild(pill);
+        });
+        if (tags.length > 8) {
+          const more = document.createElement("span");
+          more.className = "tag-pill";
+          more.textContent = `${tags.length - 8} more`;
+          tagWrap.appendChild(more);
+        }
+        info.appendChild(tagWrap);
+      }
+
+      card.classList.add("loading");
+      card.appendChild(skeleton);
+      card.addEventListener("click", async () => {
+        await showItem(item, tags);
+      });
+
+      gridEl.appendChild(card);
+      card.appendChild(img);
+      card.appendChild(info);
+    }
+  }
+
+  await Promise.all(Array.from({ length: concurrency }, () => worker()));
+}
 
 modalCloseBtn.addEventListener("click", closeModal);
-modalEl.addEventListener("click", (event) => {
-  if (event.target === modalEl) closeModal();
+openTagsBtn.addEventListener("click", () => {
+  renderTagDirectory();
+  showTagsPanel();
+});
+openPostsBtn.addEventListener("click", () => {
+  showGalleryPanel();
 });
 
 copyLinkBtn.addEventListener("click", async () => {
@@ -186,67 +422,21 @@ document.getElementById("load").addEventListener("click", async () => {
     }
 
     const metadataById = new Map((metadata.items ?? []).map((item) => [item.id, item]));
-    const items = manifest.items.map(normalizeManifestItem);
+    currentMetadataById = metadataById;
+    currentItems = manifest.items.map(normalizeManifestItem);
+    currentFilterTag = null;
 
-    statusEl.textContent = `Found ${items.length} items. Loading…`;
-
-    // naive parallelism control
-    const concurrency = 6;
-    let idx = 0;
-
-    async function worker() {
-      while (idx < items.length) {
-        const item = items[idx++];
-        const objUrl = await decryptVariant(item, "thumb", keyBytes, baseUrl);
-        objectUrls.add(objUrl);
-
-        const card = document.createElement("div");
-        card.className = "card";
-        card.dataset.id = item.id;
-
-        const skeleton = document.createElement("div");
-        skeleton.className = "thumb-skeleton";
-
-        const img = document.createElement("img");
-        img.loading = "lazy";
-        img.src = objUrl;
-        img.alt = item.name ?? item.id;
-        img.addEventListener("load", () => {
-          card.classList.remove("loading");
-          skeleton.remove();
-        });
-
-        const cap = document.createElement("div");
-        const tags = item.tags?.length ? item.tags : metadataById.get(item.id)?.tags ?? [];
-        const title = item.name || item.id.slice(0, 12);
-        cap.innerHTML = `<strong>${title}</strong><br/><small>${item.full.ext}, ${item.full.bytes} bytes</small><small class="hash">${item.id.slice(0, 12)}…</small>`;
-        if (tags.length) {
-          const tagEl = document.createElement("div");
-          tagEl.className = "tags";
-          tagEl.textContent = tags.join(", ");
-          cap.appendChild(tagEl);
-        }
-
-        card.classList.add("loading");
-        card.appendChild(skeleton);
-        card.addEventListener("click", async () => {
-          await showItem(item, tags);
-        });
-
-        card.appendChild(img);
-        card.appendChild(cap);
-        gridEl.appendChild(card);
-      }
-    }
-
-    await Promise.all(Array.from({ length: concurrency }, () => worker()));
+    statusEl.textContent = `Found ${currentItems.length} items. Loading…`;
+    renderFilterPill();
+    showGalleryPanel();
+    await renderGrid();
     statusEl.textContent = "Done.";
 
     const hashId = decodeURIComponent(location.hash.replace(/^#/, ""));
     if (hashId) {
-      const selected = items.find((item) => item.id === hashId);
+      const selected = currentItems.find((item) => item.id === hashId);
       if (selected) {
-        const tags = selected.tags?.length ? selected.tags : metadataById.get(selected.id)?.tags ?? [];
+        const tags = metadataById.get(selected.id)?.tags ?? selected.tags ?? [];
         await showItem(selected, tags);
       }
     }
@@ -260,18 +450,23 @@ async function showItem(item, tags) {
   if (!currentKeyBytes || !currentBaseUrl) return;
   currentItem = item;
   location.hash = encodeURIComponent(item.id);
-  modalTitleEl.textContent = item.name || item.id;
-  modalMetaEl.textContent = tags?.length ? `Tags: ${tags.join(", ")}` : `Hash: ${item.id}`;
+  modalTitleEl.textContent = item.name || "Untitled";
+  const metadata = currentMetadataById.get(item.id);
+  const rating = metadata?.rating ? `Rating: ${metadata.rating}` : null;
+  const source = metadata?.source ? `Source: ${metadata.source}` : null;
+  const metaParts = [rating, source].filter(Boolean);
+  modalMetaEl.textContent = metaParts.length ? metaParts.join(" · ") : `ID: ${item.id}`;
+  renderTags(metadata?.tags ?? tags ?? []);
   openModal();
   imageStageEl.classList.add("loading");
   setProgress(null);
 
   const clipUrl = await decryptVariant(item, "clip", currentKeyBytes, currentBaseUrl);
-  objectUrls.add(clipUrl);
+  modalUrls.add(clipUrl);
   modalImageEl.src = clipUrl;
   imageStageEl.classList.remove("loading");
 
-  loadFullBtn.onclick = async () => {
+  const loadFull = async () => {
     if (!currentItem) return;
     imageStageEl.classList.add("loading");
     setProgress(0);
@@ -282,10 +477,17 @@ async function showItem(item, tags) {
       currentBaseUrl,
       (progress) => setProgress(progress),
     );
-    objectUrls.add(fullUrl);
+    modalUrls.add(fullUrl);
     modalImageEl.src = fullUrl;
     imageStageEl.classList.remove("loading");
     setProgress(1);
     setTimeout(() => setProgress(null), 800);
   };
+  loadFullBtn.onclick = loadFull;
+  if (fullAutoTimer) clearTimeout(fullAutoTimer);
+  fullAutoTimer = setTimeout(() => {
+    if (currentItem?.id === item.id) {
+      loadFull();
+    }
+  }, 4000);
 }
