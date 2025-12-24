@@ -1,0 +1,11 @@
+{
+  "name": "pbooru",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:gallery": "node tools/build_gallery.mjs"
+  },
+  "dependencies": {
+    "sharp": "^0.33.4"
+  }
+}
