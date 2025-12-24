@@ -111,13 +111,14 @@ async function fetchWithProgress(url, onProgress) {
 async function decryptVariant(item, variant, keyBytes, baseUrl, progressCb = null) {
   const variantData = pickVariant(item, variant);
   const cacheKey = `pbooru:${variant}:${item.id}:${variantData.ext}`;
-  const cachedUrl = blobUrlCache.get(cacheKey);
-  if (cachedUrl) return cachedUrl;
+  const memBlob = blobCache.get(cacheKey);
+  if (memBlob) {
+    return URL.createObjectURL(memBlob);
+  }
   const cachedBlob = await getCachedBlob(cacheKey);
   if (cachedBlob) {
-    const cachedObjectUrl = URL.createObjectURL(cachedBlob);
-    blobUrlCache.set(cacheKey, cachedObjectUrl);
-    return cachedObjectUrl;
+    blobCache.set(cacheKey, cachedBlob);
+    return URL.createObjectURL(cachedBlob);
   }
   const binUrl = buildEncUrl(baseUrl, variantData.bin);
   const buf = progressCb ? await fetchWithProgress(binUrl, progressCb) : await fetchArrayBuffer(binUrl);
@@ -125,9 +126,8 @@ async function decryptVariant(item, variant, keyBytes, baseUrl, progressCb = nul
   const dec = xorBytes(enc, keyBytes);
   const blob = new Blob([dec], { type: extToMime(variantData.ext) });
   await setCachedBlob(cacheKey, blob);
-  const objectUrl = URL.createObjectURL(blob);
-  blobUrlCache.set(cacheKey, objectUrl);
-  return objectUrl;
+  blobCache.set(cacheKey, blob);
+  return URL.createObjectURL(blob);
 }
 
 function setProgress(value) {
@@ -220,7 +220,7 @@ let currentBaseUrl = null;
 let currentMetadataById = new Map();
 let currentItems = [];
 let currentFilterTag = null;
-const blobUrlCache = new Map();
+const blobCache = new Map();
 const modalUrls = new Set();
 let fullAutoTimer = null;
 
