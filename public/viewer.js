@@ -136,7 +136,11 @@ function renderTagSection(title, tags) {
   list.className = "tag-list";
   tags.forEach((tag) => {
     const item = document.createElement("li");
-    item.textContent = tag;
+    item.textContent = tag.label;
+    item.addEventListener("click", () => {
+      closeModal();
+      applyTagFilter(tag.filter);
+    });
     list.appendChild(item);
   });
   section.appendChild(list);
@@ -151,17 +155,17 @@ function renderTags(tags) {
 
   tags.forEach((tag) => {
     if (tag.startsWith("artist:")) {
-      artistTags.push(tag.replace(/^artist:/, ""));
+      artistTags.push({ label: tag.replace(/^artist:/, ""), filter: tag });
     } else if (tag.startsWith("character:")) {
-      characterTags.push(tag.replace(/^character:/, ""));
+      characterTags.push({ label: tag.replace(/^character:/, ""), filter: tag });
     } else {
-      otherTags.push(tag);
+      otherTags.push({ label: tag, filter: tag });
     }
   });
 
-  artistTags.sort();
-  characterTags.sort();
-  otherTags.sort();
+  artistTags.sort((a, b) => a.label.localeCompare(b.label));
+  characterTags.sort((a, b) => a.label.localeCompare(b.label));
+  otherTags.sort((a, b) => a.label.localeCompare(b.label));
 
   renderTagSection("Artist", artistTags);
   renderTagSection("Character", characterTags);
@@ -190,7 +194,84 @@ let currentItem = null;
 let currentKeyBytes = null;
 let currentBaseUrl = null;
 let currentMetadataById = new Map();
+let currentItems = [];
+let currentFilterTag = null;
 const objectUrls = new Set();
+
+function applyTagFilter(tag) {
+  currentFilterTag = tag;
+  statusEl.textContent = `Filtered by tag: ${tag} (click to clear)`;
+  renderGrid();
+}
+
+statusEl.addEventListener("click", () => {
+  if (!currentFilterTag) return;
+  currentFilterTag = null;
+  statusEl.textContent = `Found ${currentItems.length} items. Loading…`;
+  renderGrid().then(() => {
+    statusEl.textContent = "Done.";
+  });
+});
+
+async function renderGrid() {
+  gridEl.innerHTML = "";
+  const itemsToShow = currentFilterTag
+    ? currentItems.filter((item) => {
+        const tags = currentMetadataById.get(item.id)?.tags ?? item.tags ?? [];
+        return tags.includes(currentFilterTag);
+      })
+    : currentItems;
+
+  const concurrency = 6;
+  let idx = 0;
+
+  async function worker() {
+    while (idx < itemsToShow.length) {
+      const item = itemsToShow[idx++];
+      const objUrl = await decryptVariant(item, "thumb", currentKeyBytes, currentBaseUrl);
+      objectUrls.add(objUrl);
+
+      const card = document.createElement("div");
+      card.className = "card";
+      card.dataset.id = item.id;
+
+      const skeleton = document.createElement("div");
+      skeleton.className = "thumb-skeleton";
+
+      const img = document.createElement("img");
+      img.loading = "lazy";
+      img.src = objUrl;
+      img.alt = item.name ?? item.id;
+      img.addEventListener("load", () => {
+        card.classList.remove("loading");
+        skeleton.remove();
+      });
+
+      const cap = document.createElement("div");
+      const tags = currentMetadataById.get(item.id)?.tags ?? item.tags ?? [];
+      const title = item.name || item.id.slice(0, 12);
+      cap.innerHTML = `<strong>${title}</strong><br/><small>${item.full.ext}, ${item.full.bytes} bytes</small><small class="hash">${item.id.slice(0, 12)}…</small>`;
+      if (tags.length) {
+        const tagEl = document.createElement("div");
+        tagEl.className = "tags";
+        tagEl.textContent = tags.join(", ");
+        cap.appendChild(tagEl);
+      }
+
+      card.classList.add("loading");
+      card.appendChild(skeleton);
+      card.addEventListener("click", async () => {
+        await showItem(item, tags);
+      });
+
+      gridEl.appendChild(card);
+      card.appendChild(img);
+      card.appendChild(cap);
+    }
+  }
+
+  await Promise.all(Array.from({ length: concurrency }, () => worker()));
+}
 
 modalCloseBtn.addEventListener("click", closeModal);
 
@@ -232,65 +313,16 @@ document.getElementById("load").addEventListener("click", async () => {
 
     const metadataById = new Map((metadata.items ?? []).map((item) => [item.id, item]));
     currentMetadataById = metadataById;
-    const items = manifest.items.map(normalizeManifestItem);
+    currentItems = manifest.items.map(normalizeManifestItem);
+    currentFilterTag = null;
 
-    statusEl.textContent = `Found ${items.length} items. Loading…`;
-
-    // naive parallelism control
-    const concurrency = 6;
-    let idx = 0;
-
-    async function worker() {
-      while (idx < items.length) {
-        const item = items[idx++];
-        const objUrl = await decryptVariant(item, "thumb", keyBytes, baseUrl);
-        objectUrls.add(objUrl);
-
-        const card = document.createElement("div");
-        card.className = "card";
-        card.dataset.id = item.id;
-
-        const skeleton = document.createElement("div");
-        skeleton.className = "thumb-skeleton";
-
-        const img = document.createElement("img");
-        img.loading = "lazy";
-        img.src = objUrl;
-        img.alt = item.name ?? item.id;
-        img.addEventListener("load", () => {
-          card.classList.remove("loading");
-          skeleton.remove();
-        });
-
-        const cap = document.createElement("div");
-        const tags = metadataById.get(item.id)?.tags ?? item.tags ?? [];
-        const title = item.name || item.id.slice(0, 12);
-        cap.innerHTML = `<strong>${title}</strong><br/><small>${item.full.ext}, ${item.full.bytes} bytes</small><small class="hash">${item.id.slice(0, 12)}…</small>`;
-        if (tags.length) {
-          const tagEl = document.createElement("div");
-          tagEl.className = "tags";
-          tagEl.textContent = tags.join(", ");
-          cap.appendChild(tagEl);
-        }
-
-        card.classList.add("loading");
-        card.appendChild(skeleton);
-        card.addEventListener("click", async () => {
-          await showItem(item, tags);
-        });
-
-        card.appendChild(img);
-        card.appendChild(cap);
-        gridEl.appendChild(card);
-      }
-    }
-
-    await Promise.all(Array.from({ length: concurrency }, () => worker()));
+    statusEl.textContent = `Found ${currentItems.length} items. Loading…`;
+    await renderGrid();
     statusEl.textContent = "Done.";
 
     const hashId = decodeURIComponent(location.hash.replace(/^#/, ""));
     if (hashId) {
-      const selected = items.find((item) => item.id === hashId);
+      const selected = currentItems.find((item) => item.id === hashId);
       if (selected) {
         const tags = metadataById.get(selected.id)?.tags ?? selected.tags ?? [];
         await showItem(selected, tags);
@@ -306,12 +338,12 @@ async function showItem(item, tags) {
   if (!currentKeyBytes || !currentBaseUrl) return;
   currentItem = item;
   location.hash = encodeURIComponent(item.id);
-  modalTitleEl.textContent = item.name || item.id;
+  modalTitleEl.textContent = item.name || "Untitled";
   const metadata = currentMetadataById.get(item.id);
   const rating = metadata?.rating ? `Rating: ${metadata.rating}` : null;
   const source = metadata?.source ? `Source: ${metadata.source}` : null;
   const metaParts = [rating, source].filter(Boolean);
-  modalMetaEl.textContent = metaParts.length ? metaParts.join(" · ") : `Hash: ${item.id}`;
+  modalMetaEl.textContent = metaParts.length ? metaParts.join(" · ") : `ID: ${item.id}`;
   renderTags(metadata?.tags ?? tags ?? []);
   openModal();
   imageStageEl.classList.add("loading");

@@ -18,7 +18,7 @@
       body {
         margin: 0;
         font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
-        background: radial-gradient(circle at top, rgba(42, 52, 88, 0.65), var(--dark));
+        background: var(--dark);
         color: var(--text);
       }
       header {
@@ -59,8 +59,8 @@
         border: none;
         border-radius: 10px;
         padding: 10px 14px;
-        background: linear-gradient(135deg, rgba(238, 205, 142, 0.95), rgba(97, 217, 255, 0.65));
-        color: #1c1d2c;
+        background-color: var(--light);
+        color: var(--dark);
         font-weight: 700;
         cursor: pointer;
         box-shadow: var(--glow);
@@ -96,7 +96,7 @@
       small { opacity: 0.75; display: block; }
       small.hash { font-size: 0.75rem; letter-spacing: 1px; margin-top: 4px; }
       .tags { color: var(--accent); margin-top: 6px; font-size: 0.85rem; }
-      #status { margin: 12px 0; color: var(--light); }
+      #status { margin: 12px 0; color: var(--light); cursor: pointer; }
       .modal { position: fixed; inset: 0; background: rgba(5, 6, 12, 0.92); display: none; z-index: 10; }
       .modal.active { display: block; }
       .modal-content {
@@ -115,20 +115,25 @@
         flex-direction: column;
         gap: 16px;
       }
+      .sidebar-footer {
+        margin-top: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
       .modal-header { display: flex; justify-content: space-between; align-items: center; }
       .modal-title { font-weight: 600; color: var(--light); }
-      .modal-close { border: none; background: rgba(238, 205, 142, 0.2); color: var(--text); border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+      .modal-close { border: none; background: rgba(238, 205, 142, 0.2); color: var(--text); border-radius: 6px; padding: 6px 10px; cursor: pointer; align-self: flex-start; }
       .tag-section h3 { margin: 0 0 8px; font-size: 0.9rem; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; }
       .tag-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
-      .tag-list li { background: rgba(238, 205, 142, 0.1); border: 1px solid rgba(238, 205, 142, 0.2); padding: 6px 10px; border-radius: 999px; font-size: 0.8rem; }
+      .tag-list li { background: rgba(238, 205, 142, 0.1); border: 1px solid rgba(238, 205, 142, 0.2); padding: 6px 10px; border-radius: 999px; font-size: 0.8rem; cursor: pointer; }
       .modal-body { padding: 24px; overflow: auto; }
       .image-stage { position: relative; }
       .image-stage img { width: 100%; height: auto; border-radius: 10px; transition: filter 0.3s ease; }
       .image-stage.loading img { filter: blur(12px); transform: scale(1.01); }
       .progress-bar { height: 6px; background: rgba(238, 205, 142, 0.15); border-radius: 999px; overflow: hidden; margin-top: 10px; }
-      .progress-bar > div { height: 100%; background: linear-gradient(90deg, var(--light), var(--accent)); width: 0%; transition: width 0.2s ease; }
-      .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; align-items: center; }
-      .button { border: none; background: linear-gradient(135deg, rgba(238, 205, 142, 0.95), rgba(97, 217, 255, 0.65)); color: #1c1d2c; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+      .progress-bar > div { height: 100%; background: var(--light); width: 0%; transition: width 0.2s ease; }
+      .button { border: none; background-color: var(--light); color: var(--dark); padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer; font-weight: 600; }
       .button.secondary { background: rgba(238, 205, 142, 0.15); color: var(--text); }
       .hint { font-size: 0.8rem; opacity: 0.8; margin-top: 8px; }
       @media (max-width: 900px) {
@@ -169,12 +174,14 @@
     <div class="modal" id="modal">
       <div class="modal-content">
         <aside class="modal-sidebar">
-          <div class="modal-header">
-            <div class="modal-title" id="modalTitle"></div>
-            <button class="modal-close" id="modalClose">Back</button>
-          </div>
+          <button class="modal-close" id="modalClose">Back</button>
+          <div class="modal-title" id="modalTitle"></div>
           <div id="modalMeta"></div>
           <div id="tagSections"></div>
+          <div class="sidebar-footer">
+            <button class="button" id="loadFull">Load full</button>
+            <button class="button secondary" id="copyLink">Copy link</button>
+          </div>
         </aside>
         <div class="modal-body">
           <div class="image-stage loading" id="imageStage">
@@ -182,10 +189,6 @@
           </div>
           <div class="progress-bar" id="progressBar">
             <div id="progressFill"></div>
-          </div>
-          <div class="controls">
-            <button class="button" id="loadFull">Load full</button>
-            <button class="button secondary" id="copyLink">Copy link</button>
           </div>
         </div>
       </div>
