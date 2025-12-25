@@ -150,7 +150,6 @@ async function main() {
         ext: thumbExt,
         bytes: thumbBuffer.length,
       },
-      tags: metadataById.get(hash)?.tags ?? [],
     });
   }
 

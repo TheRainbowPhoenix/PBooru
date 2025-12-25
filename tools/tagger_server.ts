@@ -43,6 +43,9 @@ async function buildState(rawDir: string, encDir: string) {
   const metadataById = new Map(
     (metadata.items ?? []).map((item: { id: string }) => [item.id, item]),
   );
+  const metadataByName = new Map(
+    (metadata.items ?? []).map((item: { name?: string }) => [item.name, item]),
+  );
   const rawFiles = await listRawImages(rawDir);
   const items = [];
   for (const file of rawFiles) {
@@ -51,7 +54,7 @@ async function buildState(rawDir: string, encDir: string) {
     const stat = await Deno.stat(fullPath);
     const createdAt = stat.birthtime ?? stat.mtime ?? new Date();
     const hash = await sha256Hex(bytes);
-    const existing = metadataById.get(hash);
+    const existing = metadataById.get(hash) ?? metadataByName.get(file.replace(extname(file), ""));
     items.push({
       id: hash,
       name: file.replace(extname(file), ""),
