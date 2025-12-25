@@ -32,6 +32,7 @@ async function listRawImages(rawDir: string) {
 }
 
 async function buildState(rawDir: string, encDir: string) {
+  const manifestPath = join(encDir, "manifest.json");
   const metadataPath = join(encDir, "metadata.json");
   let metadata = { items: [] };
   try {
@@ -47,6 +48,8 @@ async function buildState(rawDir: string, encDir: string) {
   for (const file of rawFiles) {
     const fullPath = join(rawDir, file);
     const bytes = await Deno.readFile(fullPath);
+    const stat = await Deno.stat(fullPath);
+    const createdAt = stat.birthtime ?? stat.mtime ?? new Date();
     const hash = await sha256Hex(bytes);
     const existing = metadataById.get(hash);
     items.push({
@@ -56,6 +59,7 @@ async function buildState(rawDir: string, encDir: string) {
       tags: existing?.tags ?? [],
       rating: existing?.rating ?? "safe",
       source: existing?.source ?? "",
+      date: existing?.date ?? createdAt.toISOString(),
     });
   }
   return { manifestPath, metadataPath, items };

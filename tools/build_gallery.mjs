@@ -170,6 +170,7 @@ async function main() {
       tags: existing?.tags ?? [],
       rating: existing?.rating ?? "safe",
       source: existing?.source ?? "",
+      date: existing?.date ?? new Date().toISOString(),
     };
   });
   await fs.writeFile(
