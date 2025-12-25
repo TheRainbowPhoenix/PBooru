@@ -3,9 +3,18 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
     "build:gallery": "node tools/build_gallery.mjs"
   },
   "dependencies": {
     "sharp": "^0.33.4"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-static": "^3.0.6",
+    "@sveltejs/kit": "^2.7.3",
+    "svelte": "^4.2.19",
+    "vite": "^5.4.11"
   }
 }
