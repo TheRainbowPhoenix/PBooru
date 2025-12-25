@@ -149,8 +149,7 @@ async function main() {
         bin: thumbName,
         ext: thumbExt,
         bytes: thumbBuffer.length,
-      },
-      tags: metadataById.get(hash)?.tags ?? [],
+      }
     });
   }
 

@@ -284,8 +284,9 @@
     showProgress = false;
     const metadata = metadataById.get(item.id);
     const rating = metadata?.rating ? `Rating: ${metadata.rating}` : null;
+    const date = metadata?.date ? `Date: ${metadata.date}` : null;
     const source = metadata?.source ? `Source: ${metadata.source}` : null;
-    modalMeta = [rating, source].filter(Boolean).join(" · ");
+    modalMeta = [date, rating, source].filter(Boolean).join(" · ");
     renderModalTags(metadata?.tags ?? item.tags ?? []);
 
     const keyBytes = new TextEncoder().encode(key);
@@ -340,10 +341,22 @@
   };
 
   const getItemTags = (item) => metadataById.get(item.id)?.tags ?? item.tags ?? [];
+  const getItemDate = (item) =>
+    metadataById.get(item.id)?.date ?? item.date ?? "1970-01-01T00:00:00.000Z";
 
   const filteredItems = () => {
     if (!filterTag) return items;
     return items.filter((item) => getItemTags(item).includes(filterTag));
+  };
+
+  const groupItemsByDate = (list) => {
+    const groups = new Map();
+    list.forEach((item) => {
+      const day = getItemDate(item).slice(0, 10);
+      if (!groups.has(day)) groups.set(day, []);
+      groups.get(day).push(item);
+    });
+    return Array.from(groups.entries()).sort((a, b) => b[0].localeCompare(a[0]));
   };
 
   onMount(() => {
@@ -373,37 +386,42 @@
           </div>
         {/if}
       </div>
-      <div class="grid">
-        {#each filteredItems() as item (item.id)}
-          <button
-            class={`card ${modalItem?.id === item.id && modalOpen ? "active" : ""}`}
-            type="button"
-            on:click={() => openModal(item)}
-          >
-            {#await getThumbUrl(item)}
-              <div class="thumb-skeleton"></div>
-            {:then url}
-              <img src={url} alt={item.name ?? item.id} loading="lazy" />
-            {:catch}
-              <div class="thumb-skeleton"></div>
-            {/await}
-            <div class="card-info">
-              <div>
-                {item.full.width ?? "?"}x{item.full.height ?? "?"},
-                {(item.full.bytes / 1024).toFixed(1)}KB {item.full.ext.toUpperCase()}
-              </div>
-              <div class="card-tags">
-                {#each getItemTags(item).slice(0, 8) as tag}
-                  <span class="tag-pill">{tag}</span>
-                {/each}
-                {#if getItemTags(item).length > 8}
-                  <span class="tag-pill">{getItemTags(item).length - 8} more</span>
-                {/if}
-              </div>
-            </div>
-          </button>
-        {/each}
-      </div>
+      {#each groupItemsByDate(filteredItems()) as [date, dayItems]}
+        <div class="date-group" style="margin-bottom: 16px;">
+          <h2>{date}</h2>
+          <div class="grid">
+            {#each dayItems as item (item.id)}
+              <button
+                class={`card ${modalItem?.id === item.id && modalOpen ? "active" : ""}`}
+                type="button"
+                on:click={() => openModal(item)}
+              >
+                {#await getThumbUrl(item)}
+                  <div class="thumb-skeleton"></div>
+                {:then url}
+                  <img src={url} alt={item.name ?? item.id} loading="lazy" />
+                {:catch}
+                  <div class="thumb-skeleton"></div>
+                {/await}
+                <div class="card-info">
+                  <div>
+                    {item.full.width ?? "?"}x{item.full.height ?? "?"},
+                    {(item.full.bytes / 1024).toFixed(1)}KB {item.full.ext.toUpperCase()}
+                  </div>
+                  <div class="card-tags">
+                    {#each getItemTags(item).slice(0, 8) as tag}
+                      <span class="tag-pill">{tag}</span>
+                    {/each}
+                    {#if getItemTags(item).length > 8}
+                      <span class="tag-pill">{getItemTags(item).length - 8} more</span>
+                    {/if}
+                  </div>
+                </div>
+              </button>
+            {/each}
+          </div>
+        </div>
+      {/each}
     </section>
   {:else if panel === "tags"}
     <section class="panel">
@@ -444,8 +462,7 @@
   <div class="modal-content">
     <aside class="modal-sidebar">
       <button class="modal-close" type="button" on:click={resetModal}>Back</button>
-      <div class="modal-title">{modalItem?.name ?? "Untitled"}</div>
-      <div>{modalMeta}</div>
+      <div class="modal-title">{modalItem?.name ?? ""}</div>
       <div>
         {#if modalTags.artists.length}
           <div class="tag-section">
@@ -478,6 +495,8 @@
           </div>
         {/if}
       </div>
+      <div>{modalMeta}</div>
+
       <div class="sidebar-footer">
         <button
           class="primary"
@@ -504,7 +523,6 @@
         {/if}
       </div>
       {#if showProgress}
-
         <div class="progress-bar-root">
           <div class="progress-bar">
             <div style={`width: ${Math.round(progressValue * 100)}%`}></div>

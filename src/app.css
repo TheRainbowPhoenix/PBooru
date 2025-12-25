@@ -331,6 +331,7 @@ button.primary {
 }
 
 .modal-body {
+  position: relative;
   padding: 1px;
   overflow: hidden;
   display: flex;
@@ -367,9 +368,12 @@ button.primary {
 }
 
 .progress-bar-root {
-  position: relative;
-  height: 0;
+  position: absolute;
+  height: 6px;
   overflow: visible;
+  bottom: 2px;
+  right: 6px;
+  left: 6px;
 }
 
 .progress-bar {
