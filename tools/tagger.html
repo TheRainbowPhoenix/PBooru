@@ -78,6 +78,19 @@
         background: rgba(7, 9, 16, 0.7);
         color: var(--text);
       }
+      .field-row {
+        display: grid;
+        gap: 6px;
+      }
+      select,
+      .meta-input {
+        width: 100%;
+        padding: 8px;
+        border-radius: 10px;
+        border: 1px solid rgba(238, 205, 142, 0.2);
+        background: rgba(7, 9, 16, 0.7);
+        color: var(--text);
+      }
       .title {
         font-size: 0.9rem;
         overflow: hidden;
@@ -157,17 +170,46 @@
           });
 
           const dateInput = document.createElement("input");
-          dateInput.type = "date";
-          dateInput.value = item.date ? item.date.slice(0, 10) : "";
+          dateInput.type = "datetime-local";
+          dateInput.className = "meta-input";
+          dateInput.value = item.date ? item.date.slice(0, 19) : "";
           dateInput.addEventListener("change", () => {
             if (!dateInput.value) return;
             item.date = new Date(dateInput.value).toISOString();
           });
 
+          const ratingSelect = document.createElement("select");
+          ratingSelect.className = "meta-input";
+          ["safe", "questionable", "explicit"].forEach((value) => {
+            const option = document.createElement("option");
+            option.value = value;
+            option.textContent = value;
+            if ((item.rating ?? "safe") === value) option.selected = true;
+            ratingSelect.appendChild(option);
+          });
+          ratingSelect.addEventListener("change", () => {
+            item.rating = ratingSelect.value;
+          });
+
+          const sourceInput = document.createElement("input");
+          sourceInput.type = "url";
+          sourceInput.className = "meta-input";
+          sourceInput.placeholder = "Source URL";
+          sourceInput.value = item.source ?? "";
+          sourceInput.addEventListener("change", () => {
+            item.source = sourceInput.value.trim();
+          });
+
+          const fieldRow = document.createElement("div");
+          fieldRow.className = "field-row";
+          fieldRow.appendChild(dateInput);
+          fieldRow.appendChild(ratingSelect);
+          fieldRow.appendChild(sourceInput);
+
           card.appendChild(img);
           card.appendChild(title);
           card.appendChild(tagInput);
-          card.appendChild(dateInput);
+          card.appendChild(fieldRow);
           gridEl.appendChild(card);
         });
       }
