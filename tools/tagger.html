@@ -1,0 +1,202 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>PBooru Tagger</title>
+    <style>
+      :root {
+        --light: #eecd8e;
+        --dark: #131420;
+        --text: #eadbca;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+        background: var(--dark);
+        color: var(--text);
+      }
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 24px;
+        border-bottom: 1px solid rgba(238, 205, 142, 0.2);
+      }
+      h1 { margin: 0; font-size: 1.4rem; }
+      main { padding: 20px 24px; display: grid; gap: 16px; }
+      .panel {
+        background: rgba(23, 25, 39, 0.88);
+        border: 1px solid rgba(238, 205, 142, 0.2);
+        border-radius: 14px;
+        padding: 16px;
+      }
+      label { display: block; margin-bottom: 10px; font-size: 0.85rem; }
+      input {
+        width: 100%;
+        padding: 8px 10px;
+        margin-top: 6px;
+        border-radius: 10px;
+        border: 1px solid rgba(238, 205, 142, 0.2);
+        background: rgba(7, 9, 16, 0.7);
+        color: var(--text);
+      }
+      button {
+        border: none;
+        background-color: var(--light);
+        color: var(--dark);
+        padding: 8px 14px;
+        border-radius: 10px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 14px;
+      }
+      .card {
+        background: rgba(12, 14, 24, 0.85);
+        border: 1px solid rgba(238, 205, 142, 0.2);
+        border-radius: 12px;
+        padding: 12px;
+        display: grid;
+        gap: 8px;
+      }
+      .card img {
+        width: 100%;
+        border-radius: 10px;
+      }
+      .tag-input { width: 100%; }
+      .tag-row { display: flex; gap: 8px; align-items: center; }
+      .status { margin-top: 10px; font-size: 0.85rem; color: var(--light); }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>PBooru Tagger</h1>
+      <div id="status" class="status"></div>
+    </header>
+    <main>
+      <section class="panel">
+        <label>
+          Raw folder (default: ./raw)
+          <input id="rawDir" />
+        </label>
+        <label>
+          Enc folder (default: ./enc)
+          <input id="encDir" />
+        </label>
+        <label>
+          XOR key (used for build_gallery)
+          <input id="key" />
+        </label>
+        <div class="tag-row">
+          <button id="reload">Reload</button>
+          <button id="save">Save metadata.json</button>
+          <button id="build">Run build_gallery</button>
+        </div>
+      </section>
+      <section class="panel">
+        <div class="grid" id="grid"></div>
+      </section>
+    </main>
+
+    <script type="module">
+      const rawDirInput = document.getElementById("rawDir");
+      const encDirInput = document.getElementById("encDir");
+      const keyInput = document.getElementById("key");
+      const statusEl = document.getElementById("status");
+      const gridEl = document.getElementById("grid");
+
+      async function fetchJson(url, options) {
+        const res = await fetch(url, options);
+        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+        return res.json();
+      }
+
+      function renderItems(items) {
+        gridEl.innerHTML = "";
+        items.forEach((item) => {
+          const card = document.createElement("div");
+          card.className = "card";
+
+          const img = document.createElement("img");
+          img.src = `/raw/${encodeURIComponent(item.file)}`;
+          img.alt = item.name;
+
+          const title = document.createElement("div");
+          title.textContent = item.name;
+
+          const tagInput = document.createElement("input");
+          tagInput.className = "tag-input";
+          tagInput.value = item.tags.join(", ");
+          tagInput.placeholder = "tag1, tag2, artist:me, character:name";
+          tagInput.addEventListener("change", () => {
+            item.tags = tagInput.value
+              .split(",")
+              .map((t) => t.trim())
+              .filter(Boolean);
+          });
+
+          card.appendChild(img);
+          card.appendChild(title);
+          card.appendChild(tagInput);
+          gridEl.appendChild(card);
+        });
+      }
+
+      async function loadState() {
+        statusEl.textContent = "Loading…";
+        const params = new URLSearchParams({
+          rawDir: rawDirInput.value,
+          encDir: encDirInput.value,
+        });
+        const data = await fetchJson(`/api/state?${params.toString()}`);
+        renderItems(data.items);
+        window._taggerItems = data.items;
+        statusEl.textContent = `Loaded ${data.items.length} items`;
+      }
+
+      async function saveMetadata() {
+        statusEl.textContent = "Saving metadata…";
+        await fetchJson("/api/metadata", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            encDir: encDirInput.value,
+            items: window._taggerItems ?? [],
+          }),
+        });
+        statusEl.textContent = "metadata.json saved";
+      }
+
+      async function runBuild() {
+        statusEl.textContent = "Running build_gallery…";
+        const res = await fetchJson("/api/build", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            rawDir: rawDirInput.value,
+            encDir: encDirInput.value,
+            key: keyInput.value,
+          }),
+        });
+        statusEl.textContent = res.message;
+      }
+
+      document.getElementById("reload").addEventListener("click", loadState);
+      document.getElementById("save").addEventListener("click", saveMetadata);
+      document.getElementById("build").addEventListener("click", runBuild);
+
+      rawDirInput.value = "./raw";
+      encDirInput.value = "./enc";
+      keyInput.value = "phoebefox";
+
+      loadState().catch((error) => {
+        statusEl.textContent = `Error: ${error.message}`;
+      });
+    </script>
+  </body>
+</html>
