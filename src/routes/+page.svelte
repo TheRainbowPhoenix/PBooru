@@ -24,6 +24,7 @@
   let fullLoadInFlight = false;
   let fullLoaded = false;
   let fullAutoTimer = null;
+  let isMobile = false;
 
   const blobCache = new Map();
   const modalUrls = new Set();
@@ -220,6 +221,10 @@
     }
   };
 
+  $: if (typeof document !== "undefined") {
+    document.body.style.overflow = modalOpen ? "hidden" : "";
+  }
+
   const applyFilter = (tag) => {
     filterTag = tag;
     showPanel("posts");
@@ -362,7 +367,20 @@
     baseUrl = localStorage.getItem("pbooru.baseUrl") ?? defaultBaseUrl;
     key = localStorage.getItem("pbooru.key") ?? defaultKey;
     loadGallery();
+    const media = window.matchMedia("(max-width: 900px)");
+    const updateMedia = () => {
+      isMobile = media.matches;
+    };
+    updateMedia();
+    media.addEventListener("change", updateMedia);
+    return () => media.removeEventListener("change", updateMedia);
   });
+
+  const modalStageStyle = () => {
+    if (!isMobile) return "";
+    if (!modalItem?.full?.width || !modalItem?.full?.height) return "";
+    return `aspect-ratio: ${modalItem.full.width} / ${modalItem.full.height};`;
+  };
 </script>
 
 <header>
@@ -514,7 +532,7 @@
       </div>
     </aside>
     <div class="modal-body">
-      <div class={`image-stage ${showProgress ? "loading" : ""}`}>
+      <div class={`image-stage ${showProgress ? "loading" : ""}`} style={modalStageStyle()}>
         {#if modalImageSrc}
           <img src={modalImageSrc} alt={modalItem?.name ?? "Full image"} />
         {/if}
