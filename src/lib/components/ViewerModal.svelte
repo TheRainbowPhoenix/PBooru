@@ -69,7 +69,35 @@
       
       <!-- LEFT SIDEBAR -->
       <aside class="sidebar">
+
+        {#if tagGroups.artist.length}
+          <h2 class="title tag-header artist">Artist</h2>
+          <ul class="tag-list">
+            {#each tagGroups.artist as t}
+              <li><button on:click={() => filter(`artist:${t}`)}>{t}</button></li>
+            {/each}
+          </ul>
+        {/if}
+
+        {#if tagGroups.char.length}
+          <h2 class="title tag-header char">Character</h2>
+          <ul class="tag-list">
+            {#each tagGroups.char as t}
+              <li><button on:click={() => filter(`character:${t}`)}>{t}</button></li>
+            {/each}
+          </ul>
+        {/if}
+
+        <h2 class="title tag-header">General</h2>
+        <ul class="tag-list">
+          {#each tagGroups.gen as t}
+            <li><button on:click={() => filter(t)}>{t}</button></li>
+          {/each}
+        </ul>
+
+        
         <h2 class="title">Information</h2>
+
         <ul class="meta-list">
           <li><strong>Date:</strong> {timeAgo(item.date)}</li>
           <li>
@@ -82,36 +110,11 @@
           {/if}
         </ul>
 
-        {#if tagGroups.artist.length}
-          <h2 class="tag-header artist">Artist</h2>
-          <ul class="tag-list">
-            {#each tagGroups.artist as t}
-              <li><button on:click={() => filter(`artist:${t}`)}>{t}</button></li>
-            {/each}
-          </ul>
-        {/if}
-
-        {#if tagGroups.char.length}
-          <h2 class="tag-header char">Character</h2>
-          <ul class="tag-list">
-            {#each tagGroups.char as t}
-              <li><button on:click={() => filter(`character:${t}`)}>{t}</button></li>
-            {/each}
-          </ul>
-        {/if}
-
-        <h2 class="tag-header">General</h2>
-        <ul class="tag-list">
-          {#each tagGroups.gen as t}
-            <li><button on:click={() => filter(t)}>{t}</button></li>
-          {/each}
-        </ul>
-
         <div class="actions">
-          <button class="btn-primary" on:click={loadFull} disabled={isLoadingFull}>
+          <button class="primary" on:click={loadFull} disabled={isLoadingFull}>
             {isLoadingFull ? `${Math.round(progress*100)}%` : 'Load Full'}
           </button>
-          <a href={src} download={item.name} class="btn-link">Download</a>
+          <a href={src} download={item.name} class="btn secondary link">Download</a>
         </div>
       </aside>
 

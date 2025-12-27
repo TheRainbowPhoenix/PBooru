@@ -16,6 +16,7 @@ concurrency:
 
 env:
   BUILD_PATH: "."
+  BASE_PATH: "PBooru"
 
 jobs:
   build:

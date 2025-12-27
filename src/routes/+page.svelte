@@ -38,13 +38,14 @@
   
   // Reset Infinite limit when filter changes
   $: if ($filteredGallery) {
-     if (!$isPaginated) infiniteLimit = itemsPerPage; 
+     if (!$isPaginated  && infiniteLimit < itemsPerPage) infiniteLimit = itemsPerPage; 
   }
 
-  function toggleMode() {
-    isPaginated.update(v => !v);
+  // Handle Switch Toggle
+  function handleModeToggle() {
+    actions.toggleMode();
     if ($isPaginated) {
-      window.scrollTo(0, 0); // Reset scroll for pages
+      window.scrollTo(0, 0);
     } else {
       // Restore infinite scroll pos (approximate)
       setTimeout(() => window.scrollTo(0, scrollY), 10);
@@ -61,8 +62,21 @@
     if (window.location.hash.length > 1) {
       actions.openImage(window.location.hash.slice(1));
     }
+
+    // LISTENER: Handle Browser Back/Forward Buttons
+    const onPopState = () => {
+      actions.readUrlState();
+      // If closing modal via back button
+      if (!window.location.hash) actions.closeModal(); 
+    };
+
     window.addEventListener('scroll', onScroll);
-    return () => window.removeEventListener('scroll', onScroll);
+    window.addEventListener('popstate', onPopState);
+
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('popstate', onPopState);
+    };
   });
 
   function saveConfig() {
@@ -115,7 +129,7 @@
 
       <div class="right">
         <label class="switch">
-          <input type="checkbox" checked={$isPaginated} on:change={toggleMode}>
+          <input type="checkbox" checked={$isPaginated} on:change={handleModeToggle}>
           <span class="slider"></span>
         </label>
         <span class="mode-label">{$isPaginated ? 'Pages' : 'Scroll'}</span>

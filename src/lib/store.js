@@ -80,6 +80,39 @@ export const filteredGallery = derived([gallery, activeFilter], ([$gallery, $fil
   return $gallery.filter(item => item.tags.includes($filter));
 });
 
+// --- URL SYNC HELPER ---
+function updateUrl(push = false) {
+  if (typeof window === 'undefined') return;
+  
+  const url = new URL(window.location);
+  const mode = get(isPaginated);
+  const page = get(currentPage);
+  const tag = get(activeFilter);
+
+  // 1. Tags
+  if (tag) url.searchParams.set('tags', tag);
+  else url.searchParams.delete('tags');
+
+  // 2. Mode
+  if (mode) {
+    url.searchParams.set('mode', 'paged');
+    if (page > 1) url.searchParams.set('page', page.toString());
+    else url.searchParams.delete('page');
+  } else {
+    url.searchParams.delete('mode');
+    url.searchParams.delete('page');
+  }
+
+  // Preserve Hash (Modal)
+  url.hash = window.location.hash;
+
+  if (push) {
+    window.history.pushState({}, '', url);
+  } else {
+    window.history.replaceState({}, '', url);
+  }
+}
+
 // --- ACTIONS ---
 
 export const actions = {
@@ -94,6 +127,10 @@ export const actions = {
     }
 
     status.set('loading');
+    
+    // Read URL State on Init
+    this.readUrlState();
+
     try {
       const cleanUrl = url.replace(/\/+$/, "");
       
@@ -127,13 +164,30 @@ export const actions = {
       rawManifest.set(normalizedItems);
       rawMetadata.set(metaJson.items);
       status.set('ready');
-      currentView.set('posts');
+      // If we are not in config, ensure we see posts
+      if(get(currentView) === 'config') currentView.set('posts');
     } catch (e) {
       console.error(e);
       errorMsg.set(e.message);
       status.set('error');
       currentView.set('config');
     }
+  },
+
+  // Called on Init and PopState (Browser Back button)
+  readUrlState() {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    
+    const tag = params.get('tags');
+    const mode = params.get('mode');
+    const page = parseInt(params.get('page') || '1');
+
+    activeFilter.set(tag || null);
+    isPaginated.set(mode === 'paged');
+    currentPage.set(page);
+    
+    if (tag || mode) currentView.set('posts');
   },
 
   /**
@@ -144,6 +198,19 @@ export const actions = {
     activeFilter.set(tag);
     currentPage.set(1);
     currentView.set('posts');
+    updateUrl(true); // Push state so user can go 'back' to previous filter
+  },
+  
+  toggleMode() {
+    isPaginated.update(v => !v);
+    currentPage.set(1); // Reset page on mode switch to avoid confusion
+    updateUrl(false);
+  },
+
+  setPage(page) {
+    currentPage.set(page);
+    if (typeof window !== 'undefined') window.scrollTo(0, 0);
+    updateUrl(true);
   },
   
   /**
@@ -152,7 +219,12 @@ export const actions = {
    */
   openImage(hash) {
     activeHash.set(hash);
-    if(typeof window !== 'undefined') window.location.hash = hash;
+    if(typeof window !== 'undefined') {
+      // Update hash without touching search params
+      const url = new URL(window.location.href);
+      window.location.hash = hash;
+      window.history.replaceState({}, '', url);
+    }
   },
 
   /**
@@ -160,12 +232,12 @@ export const actions = {
    */
   closeModal() {
     activeHash.set(null);
-    if(typeof window !== 'undefined') history.replaceState(null, null, ' ');
-  },
-
-  setPage(page) {
-    currentPage.set(page);
-    if (typeof window !== 'undefined') window.scrollTo(0, 0);
+    if(typeof window !== 'undefined') {
+      // Remove hash, keep params
+      const url = new URL(window.location.href);
+      window.location.hash = '';
+      window.history.replaceState({}, '', url); // Replace to avoid back-button traps in modals
+    }
   },
 
   /**
@@ -192,6 +264,7 @@ export const actions = {
       }
     }
 
-    window.location.reload();
+    window.location.href = window.location.pathname;
+    // window.location.reload();
   }
 };
