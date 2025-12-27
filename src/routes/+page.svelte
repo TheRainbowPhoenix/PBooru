@@ -24,6 +24,8 @@
   let fullLoadInFlight = false;
   let fullLoaded = false;
   let fullAutoTimer = null;
+  let isMobile = false;
+  let stageStyle = "";
 
   const blobCache = new Map();
   const modalUrls = new Set();
@@ -220,6 +222,15 @@
     }
   };
 
+  $: if (typeof document !== "undefined") {
+    document.body.style.overflow = modalOpen ? "hidden" : "";
+  }
+
+  $: stageStyle =
+    isMobile && modalItem?.full?.width && modalItem?.full?.height
+      ? `aspect-ratio: ${modalItem.full.width} / ${modalItem.full.height};`
+      : "";
+
   const applyFilter = (tag) => {
     filterTag = tag;
     showPanel("posts");
@@ -363,7 +374,21 @@
     baseUrl = localStorage.getItem("pbooru.baseUrl") ?? defaultBaseUrl;
     key = localStorage.getItem("pbooru.key") ?? defaultKey;
     loadGallery();
+    const media = window.matchMedia("(max-width: 900px)");
+    const updateMedia = () => {
+      isMobile = media.matches;
+    };
+    updateMedia();
+    media.addEventListener("change", updateMedia);
+    return () => media.removeEventListener("change", updateMedia);
   });
+
+  const modalStageStyle = () => {
+    if (!isMobile) return "";
+    if (!modalItem?.full?.width || !modalItem?.full?.height) return "";
+    console.log(`aspect-ratio: ${modalItem.full.width} / ${modalItem.full.height};`);
+    return `aspect-ratio: ${modalItem.full.width} / ${modalItem.full.height};`;
+  };
 </script>
 
 <header>
@@ -387,7 +412,7 @@
         {/if}
       </div>
       {#each groupItemsByDate(filteredItems()) as [date, dayItems]}
-        <div class="date-group" style="margin-bottom: 16px;">
+        <div class="panel date-group" style="margin-bottom: 16px;">
           <h2>{date}</h2>
           <div class="grid">
             {#each dayItems as item (item.id)}
@@ -517,7 +542,7 @@
       </div>
     </aside>
     <div class="modal-body">
-      <div class={`image-stage ${showProgress ? "loading" : ""}`}>
+      <div class={`image-stage ${showProgress ? "loading" : ""}`} style={stageStyle}>
         {#if modalImageSrc}
           <img src={modalImageSrc} alt={modalItem?.name ?? "Full image"} />
         {/if}
