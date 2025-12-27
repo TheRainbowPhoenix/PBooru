@@ -63,15 +63,9 @@ jobs:
         working-directory: ${{ env.BUILD_PATH }}
         run: |
           if [ "${{ steps.detect-package-manager.outputs.manager }}" = "yarn" ]; then
-            yarn build -- \
-              --site "${{ steps.pages.outputs.origin }}" \
-              --base "${{ steps.pages.outputs.base_path }}" \
-              --outDir build
+            yarn build
           else
-            npm run build -- \
-              --site "${{ steps.pages.outputs.origin }}" \
-              --base "${{ steps.pages.outputs.base_path }}" \
-              --outDir build
+            npm run build
           fi
 
       # ✅ Copy enc/ into build/ so it’s deployed as static assets
