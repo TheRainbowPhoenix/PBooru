@@ -61,6 +61,8 @@ jobs:
 
       # ✅ Run your "build" script, but force Astro output to ./build
       - name: Build
+        env:
+          BASE_PATH: '/${{ github.event.repository.name }}'
         working-directory: ${{ env.BUILD_PATH }}
         run: |
           if [ "${{ steps.detect-package-manager.outputs.manager }}" = "yarn" ]; then
