@@ -1,46 +1,110 @@
 {
   "items": [
     {
-      "id": "284080062534716f1078820b86bff416_5802452103667687777",
-      "tags": ["1girl", "solo", "artist:mihoyo", "character:test"],
+      "hash": "eb7402feeede5cc37fd3a5bdb9c6c3cec1a7f543d625f2688d0e0268580a7a4a",
+      "name": "284080062534716f1078820b86bff416_5802452103667687777",
+      "tags": [
+        "1girl",
+        "solo",
+        "artist:mihoyo",
+        "character:test"
+      ],
       "rating": "safe",
-      "source": ""
+      "source": "",
+      "date": "2025-12-24T14:45:42.845Z"
     },
     {
-      "id": "4636f50f700053c1dc243109025a62ca_3957191986427777463",
-      "tags": ["1girl", "solo", "cool tag", "artist:mihoyo", "character:test"],
+      "hash": "0f7d56a0f666e83de397c30a076a6862134937a54e2bafdfe3db1b673b334ff7",
+      "name": "4636f50f700053c1dc243109025a62ca_3957191986427777463",
+      "tags": [
+        "1girl",
+        "solo",
+        "cool tag",
+        "artist:mihoyo",
+        "character:test"
+      ],
       "rating": "safe",
-      "source": ""
+      "source": "",
+      "date": "2025-12-24T13:46:00.000Z"
     },
     {
-      "id": "5f25fdddee4a89541a85cde47955b64f_6103353444251393128",
-      "tags": ["1girl", "solo", "artist:mihoyo", "character:test"],
+      "hash": "84da86964aea588ea0f49cac3998b2c5b7ae41704a88521284623c6fd87e4372",
+      "name": "5f25fdddee4a89541a85cde47955b64f_6103353444251393128",
+      "tags": [
+        "1girl",
+        "solo",
+        "artist:mihoyo",
+        "character:test"
+      ],
       "rating": "safe",
-      "source": ""
+      "source": "",
+      "date": "2025-12-24T14:45:48.623Z"
     },
     {
-      "id": "62ca11c91b7f48c53a922989c8602b3c_5830406567434764573",
-      "tags": ["1girl", "solo", "artist:mihoyo", "character:test", "cover"],
+      "hash": "2e2aa889413287891654997df2354067566a16aa042c8adf484b412affdb5ae9",
+      "name": "62ca11c91b7f48c53a922989c8602b3c_5830406567434764573",
+      "tags": [
+        "1girl",
+        "solo",
+        "artist:mihoyo",
+        "character:test",
+        "cover"
+      ],
       "rating": "safe",
-      "source": ""
+      "source": "",
+      "date": "2025-12-24T14:45:29.501Z"
     },
     {
-      "id": "67b14db668381cfc99ae18a9448f29c8_272431136127331069",
-      "tags": ["1girl", "solo", "artist:mihoyo", "character:test2", "cover"],
+      "hash": "7dce59b0d9b75cf0c00723627cb4a9338803900fa95d34e3de1716167e2d41ac",
+      "name": "67b14db668381cfc99ae18a9448f29c8_272431136127331069",
+      "tags": [
+        "1girl",
+        "solo",
+        "artist:mihoyo",
+        "character:test2",
+        "cover"
+      ],
       "rating": "safe",
-      "source": ""
+      "source": "",
+      "date": "2025-12-24T14:45:22.977Z"
     },
     {
-      "id": "8dfbb558c8eb7ab5649af43f314551dd_3522704563058855760",
-      "tags": ["1girl", "solo", "artist:mihoyo", "character:test3", "cover"],
+      "hash": "86a8bb6dee0fbce8e9e109658b686534dc8957125df73b8360f756fae88c97ac",
+      "name": "8dfbb558c8eb7ab5649af43f314551dd_3522704563058855760",
+      "tags": [
+        "1girl",
+        "solo",
+        "artist:mihoyo",
+        "character:test3",
+        "cover"
+      ],
       "rating": "safe",
-      "source": ""
+      "source": "",
+      "date": "2025-12-24T14:45:35.765Z"
     },
     {
-      "id": "f40835cbd720d841de83551695162970_8193271228566012578",
-      "tags": ["1girl", "solo", "artist:mihoyo", "character:test", "background"],
+      "hash": "0b1434ea3edb750248e8002a804c0192d4f7966193895c64e82c0910922cc321",
+      "name": "cd931b0e943371e26a2b39816d9eabab_1208784639619966555",
+      "tags": [
+        "1girl",
+        "solo",
+        "artist:mihoyo",
+        "character:test",
+        "background",
+        "character:rita",
+        "asymetric bangs"
+      ],
+      "rating": "questionable",
+      "source": "TEST SOURCE",
+      "date": "2025-12-25T01:45:00.000Z"
+    },
+    {
+      "hash": "ab1927e7cfbc533e02ad5d7582184aaf8ad3830e8c40a0586ee503223b711fdc",
+      "name": "f40835cbd720d841de83551695162970_8193271228566012578",
+      "tags": [],
       "rating": "safe",
-      "source": ""
+      "source": "",
+      "date": "2025-12-24T14:45:08.661Z"
     }
   ]
 }
