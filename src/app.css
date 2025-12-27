@@ -351,7 +351,7 @@ button.secondary, .btn.secondary { background: transparent; border: 1px solid va
   gap: 6px;
 }
 
-.tag-list li {
+.tag-list li, .tag-pill {
   background: rgba(238, 205, 142, 0.1);
   border: 1px solid rgba(238, 205, 142, 0.2);
   padding: 6px 10px;

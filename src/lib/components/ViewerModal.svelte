@@ -1,7 +1,7 @@
 <script>
   import { gallery, activeHash, config, actions } from '../store';
   import { ImageLoader } from '../loader';
-  import { onMount, onDestroy } from 'svelte';
+  import { timeAgo, formatBytes } from '../utils';
 
   let item = null;
   let src = '';
@@ -9,30 +9,37 @@
   let progress = 0;
   let loader = null;
 
-  // Find item when hash changes
-  $: {
-    item = $gallery.find(i => i.hash === $activeHash) || null;
-    if(item) loadSequence(item);
-  }
+  // Reactivity
+  $: item = $gallery.find(i => i.hash === $activeHash) || null;
+  $: if (item) loadSequence(item);
+
+  // Group Tags
+  $: tagGroups = item ? groupTags(item.tags) : { artist: [], char: [], gen: [] };
 
   // Keyboard navigation
   const onKey = (e) => {
     if (e.key === 'Escape') actions.closeModal();
   };
 
+  function groupTags(tags) {
+    const g = { artist: [], char: [], gen: [] };
+    tags.forEach(t => {
+      if (t.startsWith('artist:')) g.artist.push(t.replace('artist:', ''));
+      else if (t.startsWith('character:')) g.char.push(t.replace('character:', ''));
+      else g.gen.push(t);
+    });
+    return g;
+  }
+
+  // Loading Logic
   async function loadSequence(targetItem) {
     src = '';
     progress = 0;
     isLoadingFull = false;
     loader = new ImageLoader($config.url, $config.key);
-
-    // 1. Load Clip (High quality preview) immediately
     try {
       src = await loader.load(targetItem, 'clip');
-    } catch(e) { /* Ignore, maybe try thumb */ }
-    
-    // Auto load full after short delay or via manual trigger?
-    // Let's do manual trigger via button, or auto if cached.
+    } catch(e) { /* ignore */ }
   }
 
   async function loadFull() {
@@ -48,10 +55,10 @@
     }
   }
 
-  function filterBy(tag) {
+  const filter = (tag) => {
     actions.closeModal();
     actions.setFilter(tag);
-  }
+  };
 </script>
 
 <svelte:window on:keydown={onKey} />
@@ -60,47 +67,62 @@
   <div class="modal-backdrop" on:click|self={actions.closeModal}>
     <div class="modal-layout">
       
-      <!-- Left: Image Stage -->
-      <div class="stage" on:click|self={actions.closeModal}>
-        {#if src}
-          <img {src} alt={item.name} style="aspect-ratio: {item.full?.width}/{item.full?.height}" />
-        {:else}
-          <div class="spinner"></div>
-        {/if}
-        
-        {#if isLoadingFull}
-          <div class="progress-bar"><div style="width: {progress*100}%"></div></div>
-        {/if}
-      </div>
-
-      <!-- Right: Sidebar -->
+      <!-- LEFT SIDEBAR -->
       <aside class="sidebar">
-        <div class="sidebar-header">
-          <button class="btn-reset close-btn" on:click={actions.closeModal}>&times;</button>
-          <h3>Metadata</h3>
-        </div>
+        <h2 class="title">Information</h2>
+        <ul class="meta-list">
+          <li><strong>Date:</strong> {timeAgo(item.date)}</li>
+          <li>
+            <strong>Size:</strong> 
+            {formatBytes(item.full?.bytes)} ({item.full?.width}x{item.full?.height})
+          </li>
+          <li><strong>Rating:</strong> {item.rating}</li>
+          {#if item.source}
+            <li><strong>Source:</strong> <a href={item.source} target="_blank">Link</a></li>
+          {/if}
+        </ul>
 
-        <div class="meta-row">
-          <strong>Hash:</strong> <code>{item.hash.slice(0, 8)}...</code>
-        </div>
-        <div class="meta-row">
-          <strong>Size:</strong> {item.full?.width}x{item.full?.height}
-        </div>
+        {#if tagGroups.artist.length}
+          <h2 class="tag-header artist">Artist</h2>
+          <ul class="tag-list">
+            {#each tagGroups.artist as t}
+              <li><button on:click={() => filter(`artist:${t}`)}>{t}</button></li>
+            {/each}
+          </ul>
+        {/if}
 
-        <div class="tags-section">
-          {#each item.tags as tag}
-            <button class="tag-btn" on:click={() => filterBy(tag)}>{tag}</button>
+        {#if tagGroups.char.length}
+          <h2 class="tag-header char">Character</h2>
+          <ul class="tag-list">
+            {#each tagGroups.char as t}
+              <li><button on:click={() => filter(`character:${t}`)}>{t}</button></li>
+            {/each}
+          </ul>
+        {/if}
+
+        <h2 class="tag-header">General</h2>
+        <ul class="tag-list">
+          {#each tagGroups.gen as t}
+            <li><button on:click={() => filter(t)}>{t}</button></li>
           {/each}
-        </div>
+        </ul>
 
         <div class="actions">
-          <button class="primary" on:click={loadFull} disabled={isLoadingFull}>
-            {isLoadingFull ? 'Decrypting...' : 'Load Full Quality'}
+          <button class="btn-primary" on:click={loadFull} disabled={isLoadingFull}>
+            {isLoadingFull ? `${Math.round(progress*100)}%` : 'Load Full'}
           </button>
-          <a href={src} download={item.name + '.' + item.full.ext} class="btn secondary">Download Displayed</a>
+          <a href={src} download={item.name} class="btn-link">Download</a>
         </div>
       </aside>
 
+      <!-- RIGHT IMAGE STAGE -->
+      <div class="stage" on:click|self={actions.closeModal}>
+        {#if src}
+          <img src={src} alt={item.name} />
+        {:else}
+          <div class="spinner"></div>
+        {/if}
+      </div>
     </div>
   </div>
 {/if}
@@ -108,57 +130,47 @@
 <style>
   .modal-backdrop {
     position: fixed; inset: 0; z-index: 100;
-    background: rgba(0,0,0,0.9);
+    background: rgba(0,0,0,0.95);
     display: flex;
   }
   .modal-layout { display: flex; width: 100%; height: 100%; }
-  
-  .stage {
-    flex: 1;
-    display: flex; align-items: center; justify-content: center;
-    overflow: hidden;
-    position: relative;
-  }
-  .stage img {
-    max-width: 100%; max-height: 100%;
-    object-fit: contain;
-    box-shadow: 0 0 50px rgba(0,0,0,0.5);
-  }
 
+  /* SIDEBAR STYLING */
   .sidebar {
-    width: 320px;
-    background: var(--c-modal-bg);
-    border-left: 1px solid var(--c-border);
+    width: 280px;
+    background: #131420;
+    border-right: 1px solid #333;
     padding: 20px;
-    display: flex; flex-direction: column; gap: 16px;
     overflow-y: auto;
-  }
-  
-  .tag-btn {
-    display: block; width: 100%; text-align: left;
-    background: rgba(255,255,255,0.05);
-    border: none; color: var(--c-light);
-    padding: 6px 10px; margin-bottom: 4px;
-    border-radius: 4px; cursor: pointer;
-  }
-  .tag-btn:hover { background: rgba(255,255,255,0.1); }
-
-  .progress-bar {
-    position: absolute; bottom: 0; left: 0; right: 0; height: 4px; background: #333;
-  }
-  .progress-bar > div { height: 100%; background: var(--c-light); transition: width 0.1s; }
-
-  .close-btn { font-size: 2rem; color: var(--c-text); }
-  .sidebar-header { display: flex; justify-content: space-between; align-items: center; }
-
-  .actions {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+    font-size: 0.9rem;
+    display: flex; flex-direction: column; gap: 12px;
   }
 
-  @media (max-width: 800px) {
-    .modal-layout { flex-direction: column; }
-    .sidebar { width: 100%; height: 40%; border-left: none; border-top: 1px solid var(--c-border); }
+  .title { margin: 0; font-size: 1rem; color: #aaa; text-transform: uppercase; border-bottom: 2px solid #333; padding-bottom: 4px; }
+  .meta-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+  .meta-list li { color: #ccc; }
+  .meta-list strong { color: #eecd8e; }
+  .meta-list a { color: #88aaff; text-decoration: none; }
+
+  .tag-header { margin: 12px 0 4px; font-size: 0.85rem; text-transform: uppercase; color: #888; }
+  .tag-header.artist { color: #dd8888; }
+  .tag-header.char { color: #88dd88; }
+
+  .tag-list { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 4px; }
+  .tag-list button {
+    background: none; border: none; color: #88aaff; 
+    cursor: pointer; padding: 0; font-size: 0.9rem; text-align: left;
+  }
+  .tag-list button:hover { text-decoration: underline; color: #fff; }
+
+  .actions { margin-top: auto; display: grid; gap: 8px; }
+
+  /* STAGE STYLING */
+  .stage { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .stage img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+  @media(max-width: 800px) {
+    .modal-layout { flex-direction: column-reverse; }
+    .sidebar { width: 100%; height: 40%; border-right: none; border-top: 1px solid #333; }
   }
 </style>

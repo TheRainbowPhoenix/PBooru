@@ -4,6 +4,7 @@
  */
 
 import { writable, derived, get } from 'svelte/store';
+import { ImageLoader } from './loader';
 // eslint-disable-next-line no-unused-vars
 import * as T from './types'; // Import types for JSDoc
 
@@ -22,10 +23,13 @@ config.subscribe(val => {
 });
 
 // --- STATE ---
-export const status = writable('idle'); // idle, loading, error, ready
+export const status = writable('idle'); 
 export const errorMsg = writable('');
-export const currentView = writable('posts'); // posts, tags, config
-export const activeHash = writable(null); // For modal
+export const currentView = writable('posts'); 
+export const activeHash = writable(null);
+export const isPaginated = writable(false); // Toggle between Infinite / Paged
+export const currentPage = writable(1);
+export const itemsPerPage = 40;
 
 // --- DATA ---
 
@@ -42,10 +46,13 @@ const rawMetadata = writable([]);
 export const gallery = derived([rawManifest, rawMetadata], ([$man, $meta]) => {
   const metaMap = new Map($meta.map(m => [m.hash, m]));
   
-  return $man.map(item => {
-    // If the manifest didn't contain a hash, try to find it by name in metadata, or skip
-    // But our init() logic ensures item.hash exists.
-    const meta = metaMap.get(item.hash) || {};
+  const items = $man.map(item => {
+    // Find hash via fallback chain if manifest is messy
+    const hash = item.hash || item.sha256 || (item.full ? item.full.sha256 : null) || item.name;
+    const meta = metaMap.get(hash) || {};
+
+    // Fallback logic for date sorting
+    const dateStr = meta.date || item.date || '1970-01-01T00:00:00.000Z';
     
     return {
       hash: item.hash,
@@ -55,10 +62,12 @@ export const gallery = derived([rawManifest, rawMetadata], ([$man, $meta]) => {
       thumb: item.thumb,
       tags: meta.tags || item.tags || [],
       rating: meta.rating || 'safe',
-      date: meta.date || null,
+      date: dateStr,
       source: meta.source || ''
     };
   });
+
+  return items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 });
 
 // --- FILTERING ---
@@ -133,6 +142,7 @@ export const actions = {
    */
   setFilter(tag) {
     activeFilter.set(tag);
+    currentPage.set(1);
     currentView.set('posts');
   },
   
@@ -151,5 +161,37 @@ export const actions = {
   closeModal() {
     activeHash.set(null);
     if(typeof window !== 'undefined') history.replaceState(null, null, ' ');
+  },
+
+  setPage(page) {
+    currentPage.set(page);
+    if (typeof window !== 'undefined') window.scrollTo(0, 0);
+  },
+
+  /**
+   * Hard Reset: Clears Config, Cache Storage, and LocalStorage
+   */
+  async factoryReset() {
+    if (!confirm("This will wipe all cached images and settings. Continue?")) return;
+    
+    // Clear Stores
+    config.set({ url: '', key: '' });
+    rawManifest.set([]);
+    rawMetadata.set([]);
+    
+    // Clear LocalStorage
+    if (typeof localStorage !== 'undefined') {
+      localStorage.clear();
+    }
+
+    // Clear Cache API
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      for (const key of keys) {
+        if (key.startsWith('pbooru')) await caches.delete(key);
+      }
+    }
+
+    window.location.reload();
   }
 };
