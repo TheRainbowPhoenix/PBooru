@@ -31,6 +31,7 @@
     padding: 12px;
     border-radius: 8px;
     cursor: pointer;
+    overflow-wrap: anywhere;
   }
   .tag-card:hover { border-color: var(--c-light); }
   .count { color: #888; }
