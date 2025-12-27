@@ -9,8 +9,11 @@ import { ImageLoader } from './loader';
 import * as T from './types'; // Import types for JSDoc
 
 // --- CONFIG ---
+const TEST_PB_URL = 'https://cdn.jsdelivr.net/gh/TheRainbowPhoenix/PBooru@1177a6c0ed7e969029c011b58b04d02a387336e5/enc/';
+const TEST_PB_KEY = 'phoebefox';
+
 const storedConfig = typeof localStorage !== 'undefined' 
-  ? { url: localStorage.getItem('pb_url') || '', key: localStorage.getItem('pb_key') || '' }
+  ? { url: localStorage.getItem('pb_url') || TEST_PB_URL, key: localStorage.getItem('pb_key') || TEST_PB_KEY }
   : { url: '', key: '' };
 
 export const config = writable(storedConfig);

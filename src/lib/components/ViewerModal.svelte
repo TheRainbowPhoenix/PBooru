@@ -163,6 +163,8 @@
   .tag-list button {
     background: none; border: none; color: #88aaff; 
     cursor: pointer; padding: 0; font-size: 0.9rem; text-align: left;
+    max-width: 180px;
+    overflow-wrap: break-word;
   }
   .tag-list button:hover { text-decoration: underline; color: #fff; }
 
