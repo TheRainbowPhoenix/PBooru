@@ -26,6 +26,7 @@
   let fullAutoTimer = null;
   let isMobile = false;
   let stageStyle = "";
+  let mobileMenuOpen = false;
 
   const blobCache = new Map();
   const modalUrls = new Set();
@@ -226,6 +227,8 @@
     document.body.style.overflow = modalOpen ? "hidden" : "";
   }
 
+  $: if (!isMobile) mobileMenuOpen = false;
+
   $: stageStyle =
     isMobile && modalItem?.full?.width && modalItem?.full?.height
       ? `aspect-ratio: ${modalItem.full.width} / ${modalItem.full.height};`
@@ -370,6 +373,11 @@
     return Array.from(groups.entries()).sort((a, b) => b[0].localeCompare(a[0]));
   };
 
+  const goPanel = (name) => {
+    showPanel(name);
+    mobileMenuOpen = false; // close after navigation
+  };
+
   onMount(() => {
     baseUrl = localStorage.getItem("pbooru.baseUrl") ?? defaultBaseUrl;
     key = localStorage.getItem("pbooru.key") ?? defaultKey;
@@ -393,11 +401,35 @@
 
 <header>
   <h1>PB<span class="accent">ooru</span></h1>
-  <div class="header-actions">
-    <button class="menu-button" on:click={() => showPanel("posts")}>Posts</button>
-    <button class="menu-button" on:click={() => showPanel("tags")}>Tags</button>
-    <button class="menu-button" on:click={() => showPanel("connection")}>Connection</button>
-  </div>
+  {#if isMobile}
+    <div class="mobile-menu">
+      <button
+        class="hamburger"
+        type="button"
+        aria-label="Open menu"
+        aria-expanded={mobileMenuOpen}
+        on:click={() => (mobileMenuOpen = !mobileMenuOpen)}
+      >
+        <span class="bar"></span>
+        <span class="bar"></span>
+        <span class="bar"></span>
+      </button>
+
+      {#if mobileMenuOpen}
+        <div class="mobile-dropdown" role="menu">
+          <button type="button" role="menuitem" on:click={() => goPanel("posts")}>Posts</button>
+          <button type="button" role="menuitem" on:click={() => goPanel("tags")}>Tags</button>
+          <button type="button" role="menuitem" on:click={() => goPanel("connection")}>Connection</button>
+        </div>
+      {/if}
+    </div>
+  {:else}
+    <div class="header-actions">
+      <button class="menu-button" type="button" on:click={() => showPanel("posts")}>Posts</button>
+      <button class="menu-button" type="button" on:click={() => showPanel("tags")}>Tags</button>
+      <button class="menu-button" type="button" on:click={() => showPanel("connection")}>Connection</button>
+    </div>
+  {/if}
 </header>
 
 <main>
@@ -412,7 +444,7 @@
         {/if}
       </div>
       {#each groupItemsByDate(filteredItems()) as [date, dayItems]}
-        <div class="panel date-group" style="margin-bottom: 16px;">
+        <div class="date-group" style="margin-bottom: 16px;">
           <h2>{date}</h2>
           <div class="grid">
             {#each dayItems as item (item.id)}

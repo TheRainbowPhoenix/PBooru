@@ -416,3 +416,59 @@ button.primary {
     border-top: 1px solid var(--border);
   }
 }
+
+
+.mobile-menu {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.hamburger {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.hamburger .bar {
+  display: block;
+  height: 2px;
+  width: 22px;
+  background: currentColor;
+  border-radius: 999px;
+}
+
+.mobile-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 180px;
+  background: var(--dark);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 8px;
+  z-index: 50;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+}
+
+.mobile-dropdown button {
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.mobile-dropdown button:hover {
+  background: rgba(255,255,255,0.08);
+}
