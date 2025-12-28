@@ -359,6 +359,7 @@ button.secondary, .btn.secondary { background: transparent; border: 1px solid va
   font-size: 0.8rem;
   cursor: pointer;
   color: var(--c-light);
+  display: flex;
 }
 
 .modal-body {
