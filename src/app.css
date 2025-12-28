@@ -430,9 +430,14 @@ button.secondary, .btn.secondary { background: transparent; border: 1px solid va
   display: none;
 }
 
+.md-visible {
+  display: none;
+}
+
 @media (max-width: 900px) {
   main {
-    padding: 18px;
+    padding: 0;
+    padding-bottom: 2rem;
   }
 
   .modal-content {
@@ -443,6 +448,14 @@ button.secondary, .btn.secondary { background: transparent; border: 1px solid va
   .modal-sidebar {
     border-right: none;
     border-top: 1px solid var(--c-border);
+  }
+  
+  .md-hidden {
+    display: none;
+  }
+
+  .md-visible {
+    display: flex;
   }
 }
 

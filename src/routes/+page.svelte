@@ -12,6 +12,11 @@
   // State
   let infiniteLimit = itemsPerPage; // How many items shown in infinite mode
   let scrollY = 0; // Remembers scroll position
+  let lastScrollY = 0;
+  
+  // Mobile UI State
+  let showUI = true; // Tracks scroll direction
+  let mobileDrawerOpen = false;
 
   // -- PAGINATION LOGIC --
   $: totalPages = Math.ceil($filteredGallery.length / itemsPerPage);
@@ -23,8 +28,24 @@
 
   // -- INFINITE SCROLL HANDLER --
   function onScroll() {
-    if ($isPaginated) return;
+    const currentY = window.scrollY;
     const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
+
+    // 1. Direction Detection for UI Visibility
+    if (currentY > lastScrollY && currentY > 60) {
+      showUI = false; // Scrolling Down
+      mobileDrawerOpen = false; // Close drawer on scroll down
+    } else {
+      showUI = true; // Scrolling Up
+    }
+    
+    // Always show if at bottom (to allow pagination access)
+    if (currentY + clientHeight >= scrollHeight - 50) {
+      showUI = true;
+    }
+
+    lastScrollY = currentY;
+    if ($isPaginated) return;
     // Save scroll position
     scrollY = scrollTop; 
     
@@ -85,7 +106,10 @@
   }
 </script>
 
-<Header />
+<!-- HEADER (Slides up on mobile) -->
+<div class="header-wrapper {showUI ? '' : 'nav-hidden'}">
+  <Header />
+</div>
 
 <main>
   <!-- CONFIG SCREEN -->
@@ -104,25 +128,26 @@
 
   <!-- GALLERY SCREEN -->
   {:else if $currentView === 'posts'}
-    <div class="toolbar">
+    <div class="toolbar desktop-only">
         
       <div class="left">
 
         {#if $activeFilter}
-          <span>Filter: </span>
+          <span class="md-hidden">Filter: </span>
           <div class="filter-badge">
             <strong>{$activeFilter}</strong>
             <button on:click={() => actions.setFilter(null)}>×</button>
           </div>
         {/if}
-        <div class="stats">{$filteredGallery.length} posts</div>
+        <div class="stats">{$filteredGallery.length} <span class="md-hidden">posts</span></div>
       </div>
       
       <!-- PAGINATION CONTROLS -->
       <div class="center">
         {#if $isPaginated}
           <button disabled={$currentPage===1} on:click={() => actions.setPage($currentPage-1)}>«</button>
-          <span>Page {$currentPage} of {totalPages}</span>
+          <span class="md-hidden">Page {$currentPage} of {totalPages}</span>
+          <span class="md-visible">{$currentPage}</span>
           <button disabled={$currentPage===totalPages} on:click={() => actions.setPage($currentPage+1)}>»</button>
         {/if}
       </div>
@@ -150,12 +175,101 @@
   {:else if $currentView === 'tags'}
     <TagList />
   {/if}
+
+  
+
+  {#if $isPaginated}
+    <div class="bottom-section">
+      <div class="pagination-row md-visible">
+        <button disabled={$currentPage===1} on:click={() => actions.setPage($currentPage-1)}>Previous</button>
+        <span>{$currentPage} / {totalPages}</span>
+        <button disabled={$currentPage===totalPages} on:click={() => actions.setPage($currentPage+1)}>Next</button>
+      </div>
+
+    </div>
+  {/if}
+
 </main>
 
+<!-- MOBILE FLOATING ACTION BUTTON (Slides down on scroll) -->
+{#if $currentView === 'posts'}
+  <button 
+    class="mobile-fab {showUI ? '' : 'nav-hidden'}" 
+    on:click={() => mobileDrawerOpen = !mobileDrawerOpen}
+    aria-label="Options"
+  >
+    <!-- Simple Icon for settings/filter -->
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line>
+      <line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line>
+      <line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line>
+      <line x1="17" y1="16" x2="23" y2="16"></line>
+    </svg>
+    {#if $activeFilter}<span class="dot"></span>{/if}
+  </button>
+{/if}
+<!-- MOBILE BOTTOM DRAWER -->
+{#if mobileDrawerOpen && $currentView === 'posts'}
+  <div class="drawer-backdrop" on:click={() => mobileDrawerOpen = false}></div>
+  <div class="drawer">
+    <div class="drawer-header">
+      <h3>Options</h3>
+      <button on:click={() => mobileDrawerOpen = false}>Close</button>
+    </div>
+    
+    <div class="drawer-content">
+      <!-- Filter Section -->
+      <div class="drawer-section">
+        <div class="section-label">Active Filter</div>
+        {#if $activeFilter}
+          <div class="filter-badge large">
+            <strong>{$activeFilter}</strong>
+            <button on:click={() => actions.setFilter(null)}>Remove</button>
+          </div>
+        {:else}
+          <div class="empty-state">No tags selected</div>
+        {/if}
+      </div>
+
+      <!-- View Mode Section -->
+      <div class="drawer-section">
+        <div class="section-label">View Mode</div>
+        <div class="toggle-row">
+          <span>Infinite Scroll</span>
+          <label class="switch">
+            <input type="checkbox" checked={$isPaginated} on:change={handleModeToggle}>
+            <span class="slider"></span>
+          </label>
+          <span>Pages</span>
+        </div>
+      </div>
+
+      <!-- Pagination Controls (Only if Pages mode) -->
+      {#if $isPaginated}
+        <div class="drawer-section">
+          <div class="section-label">Navigation</div>
+          <div class="pagination-row">
+            <button disabled={$currentPage===1} on:click={() => actions.setPage($currentPage-1)}>Previous</button>
+            <span>{$currentPage} / {totalPages}</span>
+            <button disabled={$currentPage===totalPages} on:click={() => actions.setPage($currentPage+1)}>Next</button>
+          </div>
+        </div>
+      {/if}
+    </div>
+  </div>
+{/if}
 <ViewerModal />
 
 <style>
-  main { padding: 20px; max-width: 1800px; margin: 0 auto; }
+
+  /* Header Wrapper for sliding animation */
+  .header-wrapper {
+    position: sticky; top: 0; z-index: 10;
+    transition: transform 0.3s ease;
+  }
+  .header-wrapper.nav-hidden { transform: translateY(-100%); }
+
   
   .toolbar {
     display: flex; justify-content: space-between; align-items: center;
@@ -200,4 +314,63 @@
   .center button { background: #333; color: white; border: none; padding: 4px 12px; cursor: pointer; border-radius: 4px; }
   .center button:disabled { opacity: 0.3; }
   .loading-more { text-align: center; padding: 20px; opacity: 0.5; }
+
+  /* --- MOBILE SPECIFIC --- */
+  .mobile-fab { display: none; }
+  .drawer { display: none; }
+
+  @media (max-width: 900px) {
+    .desktop-only { display: none !important; }
+
+    .toolbar {
+      padding: .25rem .5rem;
+    }
+
+    .filter-badge { 
+      justify-content: space-between;
+    }
+
+    /* Floating Action Button */
+    .mobile-fab {
+      display: flex; align-items: center; justify-content: center;
+      position: fixed; bottom: 20px; right: 20px; z-index: 40;
+      width: 56px; height: 56px;
+      border-radius: 50%; background: #eecd8e; color: #131420;
+      border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      transition: transform 0.3s ease;
+    }
+    .mobile-fab.nav-hidden { transform: translateY(150%); }
+    .mobile-fab .dot { position: absolute; top: 12px; right: 14px; width: 8px; height: 8px; background: #d00; border-radius: 50%; }
+
+    /* Bottom Drawer */
+    .drawer-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 49; animation: fadein 0.2s; }
+    .drawer {
+      display: block; position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
+      background: #1b1e2e; border-top: 1px solid #333;
+      border-radius: 16px 16px 0 0;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.4);
+      animation: slideup 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .drawer-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 16px 24px; border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .drawer-header h3 { margin: 0; color: #fff; }
+    .drawer-header button { background: none; border: none; color: #eecd8e; font-weight: bold; }
+
+    .drawer-content { padding: 24px; display: flex; flex-direction: column; gap: 24px; }
+    
+    .drawer-section { display: flex; flex-direction: column; gap: 10px; }
+    .section-label { font-size: 0.85rem; text-transform: uppercase; color: #888; font-weight: bold; }
+    .empty-state { color: #555; font-style: italic; }
+
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; }
+    
+    .pagination-row { display: flex; justify-content: space-between; align-items: center; }
+    .pagination-row button { background: #333; color: white; border: none; padding: 10px 20px; border-radius: 8px; }
+    .pagination-row button:disabled { opacity: 0.3; }
+  }
+
+  @keyframes slideup { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
 </style>

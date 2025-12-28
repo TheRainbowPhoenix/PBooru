@@ -6,6 +6,7 @@
   let item = null;
   let src = '';
   let isLoadingFull = false;
+  let isFullView = false;
   let progress = 0;
   let loader = null;
 
@@ -52,9 +53,14 @@
     src = '';
     progress = 0;
     isLoadingFull = false;
+    isFullView = false;
     loader = new ImageLoader($config.url, $config.key);
     try {
       src = await loader.load(targetItem, 'clip');
+
+      if (targetItem.clip?.bytes === targetItem.full?.bytes) {
+        isFullView = true;
+      }
     } catch(e) { /* ignore */ }
   }
 
@@ -64,6 +70,7 @@
     try {
       const fullSrc = await loader.load(item, 'full', (p) => progress = p);
       src = fullSrc;
+      isFullView = true; 
     } catch(e) {
       alert("Failed to decrypt full image");
     } finally {
@@ -134,9 +141,11 @@
         </ul>
 
         <div class="actions">
-          <button class="primary" on:click={loadFull} disabled={isLoadingFull}>
-            {isLoadingFull ? `${Math.round(progress*100)}%` : 'Load Full Quality'}
-          </button>
+          {#if !isFullView}
+            <button class="primary" on:click={loadFull} disabled={isLoadingFull}>
+                {isLoadingFull ? `${Math.round(progress*100)}%` : 'Load Full Quality'}
+            </button>
+          {/if}
           <a href={src} download={item.name} class="btn secondary link">Download</a>
         </div>
       </aside>
@@ -261,6 +270,7 @@
       width: 100%;
       /* height is set via inline style (aspect-ratio) */
       max-height: 400vh; /* Limit for insane images */
+      min-height: 40vh;
       background: #000;
     }
 
@@ -268,6 +278,7 @@
       width: 100%;
       height: auto; /* Allow it to flow naturally */
       max-height: 400vh;
+      min-height: 40vh;
       object-fit: contain;
     }
 
@@ -279,6 +290,8 @@
       border-top: 1px solid #333; 
       overflow: visible;
       position: relative;
+      padding: .25rem 1rem;
+      padding-bottom: 2rem;
     }
 
     .sidebar-top {
